@@ -33,6 +33,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
+      # Note: macOS Intel (x86_64) is intentionally omitted. GitHub's macos-13
+      # Intel runners are slow/flaky and frequently fail this heavy workspace
+      # build, which blocked the whole release. Ship Apple Silicon only for
+      # macOS; Intel Mac users can build from source.
       matrix:
         include:
           - runner: ubuntu-latest
@@ -46,10 +50,6 @@ jobs:
           - runner: macos-latest
             target: aarch64-apple-darwin
             asset: webuild-macos-aarch64
-            bin: xai-webuild-pager
-          - runner: macos-13
-            target: x86_64-apple-darwin
-            asset: webuild-macos-x86_64
             bin: xai-webuild-pager
 
     steps:

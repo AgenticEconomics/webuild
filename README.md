@@ -193,7 +193,7 @@ You (maintainer)                         Users
 |-------|------|
 | Installer | [`scripts/install.sh`](scripts/install.sh) |
 | CI release | [`.github/workflows/release.yml`](.github/workflows/release.yml) |
-| Asset names | `webuild-linux-x86_64`, `webuild-linux-aarch64`, `webuild-macos-aarch64`, `webuild-macos-x86_64` (+ `.tar.gz`) |
+| Asset names | `webuild-linux-x86_64`, `webuild-linux-aarch64`, `webuild-macos-aarch64` (+ `.tar.gz`) — macOS Intel is not prebuilt |
 
 ### One-time setup
 

@@ -43,6 +43,17 @@ case "$(uname -m)" in
     ;;
 esac
 
+# Prebuilt releases do not include macOS Intel binaries (CI matrix ships
+# Apple Silicon only). Fail early with a clear next step.
+if [ "$os" = "macos" ] && [ "$arch" = "x86_64" ]; then
+  echo "error: no prebuilt binary for macOS Intel (x86_64)." >&2
+  echo "       Releases ship webuild-macos-aarch64 (Apple Silicon) only." >&2
+  echo "       On Intel Macs, build from source:" >&2
+  echo "         git clone https://github.com/${REPO}.git && cd webuild" >&2
+  echo "         cargo build -p xai-webuild-pager-bin --release" >&2
+  exit 1
+fi
+
 # Asset names published by .github/workflows/release.yml
 ASSET="webuild-${os}-${arch}"
 API="https://api.github.com/repos/${REPO}"
