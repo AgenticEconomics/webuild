@@ -1,0 +1,12 @@
+[package]
+license = "Apache-2.0"
+name = "xai-webuild-version"
+version = "0.2.102"
+edition.workspace = true
+description = "Lockstepped webuild CLI version."
+
+[dependencies]
+semver = { workspace = true }
+
+[lints]
+workspace = true

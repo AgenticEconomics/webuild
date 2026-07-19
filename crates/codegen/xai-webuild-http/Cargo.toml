@@ -1,0 +1,20 @@
+[package]
+license = "Apache-2.0"
+name = "xai-webuild-http"
+version = "0.1.0"
+edition.workspace = true
+description = "Shared reqwest HTTP clients and User-Agent construction for the webuild CLI."
+
+[dependencies]
+reqwest = { workspace = true, features = ["blocking"] }
+reqwest-middleware = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+xai-webuild-auth = { workspace = true, features = ["middleware"] }
+xai-webuild-sampler = { path = "../xai-webuild-sampler" }
+xai-webuild-telemetry = { workspace = true }
+xai-webuild-version = { workspace = true }
+xai-webuild-workspace = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,25 @@
+[package]
+license = "Apache-2.0"
+name = "xai-webuild-subagent-resolution"
+version = "0.1.0"
+edition.workspace = true
+description = "Subagent configuration resolution: merges persona, role, and spawn-time overrides into a resolved spec"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+xai-webuild-sampling-types = { path = "../xai-webuild-sampling-types" }
+xai-webuild-tools = { path = "../xai-webuild-tools" }
+xai-tool-types.workspace = true
+# TODO(phase2): add these when resolve_subagent_spec() composition is implemented:
+# xai-webuild-agent = { path = "../xai-webuild-agent" }  # AgentDefinition lookup
+# xai-fast-worktree = { path = "../xai-fast-worktree" }  # worktree creation
+
+[dev-dependencies]
+tempfile = { workspace = true }
+toml = { workspace = true }
+
+[lints]
+workspace = true
