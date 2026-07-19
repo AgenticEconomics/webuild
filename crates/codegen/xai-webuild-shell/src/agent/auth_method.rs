@@ -262,6 +262,21 @@ fn build_unpinned(
     }
 }
 
+/// Whether this fork should advertise browser / grok.com-style interactive login.
+///
+/// Default is **off**: day-to-day use is API-key (DASHSCOPE_API_KEY / model
+/// `env_key`). Opt in with `WEBUILD_ENABLE_BROWSER_LOGIN=1` (or any truthy
+/// value), or when enterprise OIDC / `auth_provider_command` is configured.
+pub fn browser_login_enabled() -> bool {
+    match std::env::var("WEBUILD_ENABLE_BROWSER_LOGIN") {
+        Ok(v) => {
+            let t = v.trim().to_ascii_lowercase();
+            !(t.is_empty() || t == "0" || t == "false" || t == "no" || t == "off")
+        }
+        Err(_) => false,
+    }
+}
+
 fn push_interactive_login(
     methods: &mut Vec<acp::AuthMethod>,
     has_enterprise_oidc: bool,
@@ -279,9 +294,10 @@ fn push_interactive_login(
         let issuer = enterprise_oidc_issuer
             .expect("enterprise_oidc_issuer is required when has_enterprise_oidc is true");
         methods.push(oidc_auth_method(issuer, login_label));
-    } else {
+    } else if has_auth_provider_command || browser_login_enabled() {
         methods.push(webuild_com_auth_method(login_label, has_auth_provider_command));
     }
+    // else: API-key-first fork default — no browser login advertised
 }
 
 /// ACP session auth method. Use `is_session_based_method` for classification.
@@ -388,9 +404,9 @@ pub fn session_token_auth_gate(
 }
 
 pub const AUTH_ERROR_SESSION_EXPIRED: &str =
-    "Session expired. Run `webuild login` to re-authenticate.";
+    "Session expired. Set DASHSCOPE_API_KEY / QWEN_API_KEY (or XAI_API_KEY for xAI models), or run `webuild login` if browser login is enabled.";
 
-pub const AUTH_ERROR_API_KEY: &str = "Authentication failed. Run `webuild login`, set XAI_API_KEY, or add api_key to ~/.webuild/config.toml.";
+pub const AUTH_ERROR_API_KEY: &str = "Authentication failed. Set DASHSCOPE_API_KEY or QWEN_API_KEY for qwen3.7-max, set XAI_API_KEY for xAI models, or add api_key/env_key under [model.*] in ~/.webuild/config.toml.";
 
 /// Next ACP method id when `cached_token` cannot proceed (missing / expired /
 /// legacy WebLogin), or `None` when fallthrough is forbidden.
@@ -415,23 +431,24 @@ pub fn method_id_after_cached_token_unavailable(
     }
 }
 
-/// Error when `preferred_method=api_key` but no key/BYOK credentials exist.
-pub const PREFERRED_API_KEY_UNAVAILABLE: &str = "preferred_method=api_key but no API key is configured (set XAI_API_KEY or model api_key/env_key in config.toml).";
+/// Error when no API key is configured (default fork path / preferred_method=api_key).
+pub const PREFERRED_API_KEY_UNAVAILABLE: &str = "No API key configured. For the default model (qwen3.7-max), set DASHSCOPE_API_KEY or QWEN_API_KEY. For xAI models set XAI_API_KEY, or add api_key/env_key under [model.*] in ~/.webuild/config.toml. See: https://github.com/AgenticEconomics/webuild#readme";
 
 /// Error when `preferred_method=oidc` but the session path cannot proceed.
 pub const PREFERRED_OIDC_UNAVAILABLE: &str =
-    "preferred_method=oidc but no session is available. Run `webuild login` to authenticate.";
+    "preferred_method=oidc but no session is available. Run `webuild login` (with WEBUILD_ENABLE_BROWSER_LOGIN=1 if needed) to authenticate.";
 
 pub const XAI_API_KEY_METHOD_ID: &str = "xai.api_key";
 pub fn xai_api_key_auth_method() -> acp::AuthMethod {
     acp::AuthMethod::Agent(
         acp::AuthMethodAgent::new(
             acp::AuthMethodId::new(XAI_API_KEY_METHOD_ID),
-            "xai.api_key".to_string(),
+            "API key".to_string(),
         )
-        .description(Some(format!(
-            "{XAI_API_KEY_ENV_VAR} or api_key/env_key in config.toml"
-        ))),
+        .description(Some(
+            "DASHSCOPE_API_KEY / QWEN_API_KEY (qwen3.7-max), XAI_API_KEY (xAI), or [model.*] api_key/env_key"
+                .to_string(),
+        )),
     )
 }
 
@@ -681,16 +698,30 @@ mod tests {
         );
     }
 
-    /// Brand-new user (no API key, no cached token): only `grok.com` is
-    /// advertised, and the pager will (correctly) show the login screen.
-    /// `default_auth_method_id` is None so the pager falls back to the
-    /// advertised login method.
+    /// Brand-new user (no API key, no cached token): this fork does **not**
+    /// advertise browser login by default — empty methods so the pager shows
+    /// the API-key setup message (`PREFERRED_API_KEY_UNAVAILABLE`).
     #[test]
-    fn fresh_user_only_advertises_webuild_com_and_requires_login() {
+    #[serial]
+    fn fresh_user_advertises_no_browser_login_by_default() {
+        let _clear = EnvGuard::unset("WEBUILD_ENABLE_BROWSER_LOGIN");
         let built = build_auth_methods(default_inputs());
 
-        assert_eq!(first_kind(&built.methods), Some(AuthMethodKind::WeBuildCom));
+        assert!(
+            built.methods.is_empty(),
+            "without API key / OIDC / WEBUILD_ENABLE_BROWSER_LOGIN, no methods"
+        );
         assert!(built.default_auth_method_id.is_none());
+    }
+
+    /// Opt-in browser login via env still advertises `grok.com` (wire id).
+    #[test]
+    #[serial]
+    fn browser_login_env_advertises_webuild_com() {
+        let _guard = EnvGuard::set("WEBUILD_ENABLE_BROWSER_LOGIN", "1");
+        assert!(browser_login_enabled());
+        let built = build_auth_methods(default_inputs());
+        assert_eq!(first_kind(&built.methods), Some(AuthMethodKind::WeBuildCom));
         assert_eq!(built.methods.len(), 1);
     }
 
@@ -858,12 +889,14 @@ mod tests {
 
     /// Admin kill switch (`disable_api_key_auth`): the predicate must return
     /// false even when credentials are available everywhere (global env var
-    /// AND per-model env_key), so the builder never advertises `xai.api_key`
-    /// and the pager sends the user to the deployment's login method instead.
+    /// AND per-model env_key), so the builder never advertises `xai.api_key`.
+    /// With browser login opt-in, interactive login leads; without it methods
+    /// stay empty (API-key-first fork default).
     #[test]
     #[serial]
     fn disable_api_key_auth_suppresses_xai_api_key_method() {
         let _set = EnvGuard::set(XAI_API_KEY_ENV_VAR, "xai-external-key");
+        let _browser = EnvGuard::set("WEBUILD_ENABLE_BROWSER_LOGIN", "1");
         let cfg = Config::default();
         let models = resolve_model_list(&cfg, None);
 
@@ -887,8 +920,8 @@ mod tests {
         assert_eq!(
             first_kind(&built.methods),
             Some(AuthMethodKind::WeBuildCom),
-            "with api-key auth disabled and no cached token, the login method \
-             must lead so the pager requires interactive login",
+            "with api-key auth disabled, browser login opt-in, and no cached token, \
+             interactive login must lead",
         );
         assert!(built.default_auth_method_id.is_none());
     }
@@ -1043,10 +1076,9 @@ mod tests {
             has_cached_token: mgr.current().is_some(),
             ..default_inputs()
         });
-        assert_eq!(
-            first_kind(&built.methods),
-            Some(AuthMethodKind::WeBuildCom),
-            "no cached token AND no api key: pager must show login (grok.com first)",
+        assert!(
+            built.methods.is_empty(),
+            "no cached token AND no api key: no browser login by default (API-key-first fork)",
         );
     }
 
@@ -1082,6 +1114,7 @@ mod tests {
             has_external_api_key: true,
             has_cached_token: true,
             preferred_method: Some(PreferredAuthMethod::Oidc),
+            has_auth_provider_command: true, // force interactive method under OIDC pin
             ..default_inputs()
         });
         assert_eq!(
@@ -1097,6 +1130,7 @@ mod tests {
             has_external_api_key: true,
             has_cached_token: false,
             preferred_method: Some(PreferredAuthMethod::Oidc),
+            has_auth_provider_command: true,
             ..default_inputs()
         });
         assert_eq!(method_ids(&built), vec![WEBUILD_COM_METHOD_ID]);

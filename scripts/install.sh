@@ -174,6 +174,22 @@ echo >&2
 echo "Installed ${ver:-webuild} → $BIN_DIR/webuild" >&2
 echo >&2
 
+# Persist installer source so `webuild update` hints at GitHub reinstall.
+CONFIG_FILE="$HOME/.webuild/config.toml"
+mkdir -p "$HOME/.webuild"
+if [ ! -f "$CONFIG_FILE" ]; then
+  printf '[cli]\ninstaller = "gh-release"\nauto_update = false\n' > "$CONFIG_FILE"
+elif ! grep -q '^\[cli\]' "$CONFIG_FILE" 2>/dev/null; then
+  printf '\n[cli]\ninstaller = "gh-release"\nauto_update = false\n' >> "$CONFIG_FILE"
+elif ! grep -q 'installer\s*=' "$CONFIG_FILE" 2>/dev/null; then
+  # Insert installer under existing [cli] without clobbering user settings.
+  tmp="$CONFIG_FILE.tmp.$$"
+  awk '
+    /^\[cli\][[:space:]]*(#.*)?$/ { print; print "installer = \"gh-release\""; print "auto_update = false"; next }
+    { print }
+  ' "$CONFIG_FILE" > "$tmp" && mv "$tmp" "$CONFIG_FILE"
+fi
+
 # PATH hint
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;

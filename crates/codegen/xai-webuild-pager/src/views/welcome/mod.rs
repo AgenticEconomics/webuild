@@ -684,10 +684,31 @@ pub fn render_welcome(
 
     let mut result = match params.auth_state {
         AuthState::Pending { error } => {
-            let label = params.login_label.unwrap_or("WeBuild");
-            let login_text = format!("Login with {}", label);
-            let menu = [("l", login_text.as_str()), ("q", "Quit")];
-            let msg = error.as_deref().map(|e| (e, theme.accent_error));
+            // API-key-first: when no browser login method is advertised, show
+            // provider key instructions instead of "Login with grok.com".
+            let has_login = params.login_label.is_some();
+            let login_text = params
+                .login_label
+                .map(|label| format!("Login with {label}"));
+            let menu_login: [(&str, &str); 2] = [
+                (
+                    "l",
+                    login_text.as_deref().unwrap_or("Login"),
+                ),
+                ("q", "Quit"),
+            ];
+            let menu_api: [(&str, &str); 1] = [("q", "Quit")];
+            let menu_slice: &[(&str, &str)] = if has_login {
+                &menu_login
+            } else {
+                &menu_api
+            };
+            let default_help = "Set DASHSCOPE_API_KEY or QWEN_API_KEY, then restart webuild";
+            let msg = match (error.as_deref(), has_login) {
+                (Some(e), _) => Some((e, theme.accent_error)),
+                (None, false) => Some((default_help, theme.gray_bright)),
+                (None, true) => None,
+            };
             let info = PromptInfo {
                 model_name: params.model_name,
                 flags: params.flags,
@@ -699,7 +720,7 @@ pub fn render_welcome(
                 content_area,
                 buf,
                 msg,
-                &menu,
+                menu_slice,
                 params.selected,
                 Some((prompt, &info)),
                 h_margin,

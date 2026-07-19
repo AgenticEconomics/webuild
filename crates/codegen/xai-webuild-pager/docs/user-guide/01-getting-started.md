@@ -71,8 +71,11 @@ export DASHSCOPE_API_KEY="sk-..."   # or QWEN_API_KEY
 webuild
 ```
 
-WeBuild opens the TUI and uses `qwen3.7-max` by default. No browser login is
-required for the Qwen / OpenAI-compatible path.
+WeBuild opens the TUI and uses `qwen3.7-max` by default. **No browser login**
+is required for the Qwen / OpenAI-compatible path. If you skip the API key,
+the welcome screen tells you to set `DASHSCOPE_API_KEY` (or `QWEN_API_KEY`)
+and restart — it will not open grok.com OAuth unless you opt in with
+`WEBUILD_ENABLE_BROWSER_LOGIN=1` or configure enterprise OIDC.
 
 ### Optional: other providers
 
