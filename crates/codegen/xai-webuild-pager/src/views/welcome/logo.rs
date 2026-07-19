@@ -1,7 +1,10 @@
-//! Logo component — renders the braille art logo.
+//! Logo component — renders the welcome-screen brand mark.
 //!
-//! Hidden entirely on legacy Windows consoles: the U+2800 braille block is
-//! not covered by the ConHost raster fonts and would render as tofu.
+//! Default assets are plain ASCII "WeBuild" text
+//! (`assets/logo/logo07.txt` / `logo05.txt`). Braille variants under the same
+//! directory are optional and not selected by default.
+//!
+//! On legacy Windows consoles the logo is still shown (ASCII is safe).
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
@@ -16,9 +19,10 @@ const LOGO: &str = include_str!("../../../assets/logo/logo07.txt");
 const LOGO_SMALL: &str = include_str!("../../../assets/logo/logo05.txt");
 
 /// Height at or above which the small logo is shown (below it, no logo).
-const SMALL_LOGO_MIN_HEIGHT: u16 = 22;
+/// ASCII mark is short (~5 rows), so show it earlier than the old braille art.
+const SMALL_LOGO_MIN_HEIGHT: u16 = 14;
 /// Height at or above which the full logo is shown.
-const FULL_LOGO_MIN_HEIGHT: u16 = 26;
+const FULL_LOGO_MIN_HEIGHT: u16 = 18;
 
 fn pick_logo(window_height: u16) -> Option<&'static str> {
     pick_logo_for(window_height, logo_hidden())
@@ -35,9 +39,9 @@ fn pick_logo_for(window_height: u16, hidden: bool) -> Option<&'static str> {
     }
 }
 
-/// The braille art has no ASCII stand-in; see the module doc.
+/// Logo is plain ASCII by default — safe on all consoles.
 fn logo_hidden() -> bool {
-    crate::glyphs::is_legacy_windows_console()
+    false
 }
 
 fn non_empty_lines(logo: &str) -> impl Iterator<Item = &str> {
