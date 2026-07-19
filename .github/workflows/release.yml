@@ -1,0 +1,185 @@
+# Build multi-platform webuild binaries and publish a GitHub Release.
+#
+# Trigger:
+#   git tag v0.2.103 && git push origin v0.2.103
+#   — or: Actions → Release → Run workflow
+#
+# Users install with:
+#   curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.2.103). Empty = use latest tag / run id."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build:
+    name: build (${{ matrix.asset }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset: webuild-linux-x86_64
+            bin: xai-webuild-pager
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            asset: webuild-linux-aarch64
+            bin: xai-webuild-pager
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+            asset: webuild-macos-aarch64
+            bin: xai-webuild-pager
+          - runner: macos-13
+            target: x86_64-apple-darwin
+            asset: webuild-macos-x86_64
+            bin: xai-webuild-pager
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.92.0"
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install protoc (system)
+        run: |
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            brew install protobuf || true
+          else
+            sudo apt-get update
+            sudo apt-get install -y protobuf-compiler
+          fi
+          protoc --version
+
+      - name: Install dotslash (for bin/protoc fallback)
+        run: |
+          cargo install dotslash --locked || cargo install dotslash
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Build release binary
+        run: |
+          cargo build -p xai-webuild-pager-bin --release --target ${{ matrix.target }}
+          src="target/${{ matrix.target }}/release/${{ matrix.bin }}"
+          test -x "$src"
+          mkdir -p dist
+          cp "$src" "dist/${{ matrix.asset }}"
+          chmod +x "dist/${{ matrix.asset }}"
+          # Also ship a .tar.gz (install.sh accepts either form)
+          tar -C dist -czf "dist/${{ matrix.asset }}.tar.gz" "${{ matrix.asset }}"
+          ls -lh dist/
+
+      - name: Smoke --version
+        run: |
+          ./dist/${{ matrix.asset }} --version || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: |
+            dist/${{ matrix.asset }}
+            dist/${{ matrix.asset }}.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for install.sh / notes)
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten assets
+        run: |
+          mkdir -p release-assets
+          # artifacts/<asset-name>/<files>
+          find artifacts -type f \( -name 'webuild-*' \) -print
+          find artifacts -type f -name 'webuild-*' -exec cp -v {} release-assets/ \;
+          ls -lah release-assets/
+
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v0.0.0-ci.${{ github.run_number }}"
+          fi
+          case "$TAG" in v*) ;; *) TAG="v$TAG" ;; esac
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Publishing tag: $TAG"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: WeBuild ${{ steps.tag.outputs.tag }}
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+          files: |
+            release-assets/*
+          body: |
+            ## Install (Linux / macOS)
+
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash
+            ```
+
+            Pin a version:
+
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash -s -- ${{ steps.tag.outputs.tag }}
+            ```
+
+            ## After install
+
+            ```bash
+            export PATH="$HOME/.webuild/bin:$PATH"
+            export DASHSCOPE_API_KEY=...   # default model: qwen3.7-max
+            webuild --version
+            webuild
+            ```
+
+            ## Assets
+
+            | File | Platform |
+            |------|----------|
+            | `webuild-linux-x86_64` | Linux x86_64 |
+            | `webuild-linux-aarch64` | Linux arm64 |
+            | `webuild-macos-aarch64` | macOS Apple Silicon |
+            | `webuild-macos-x86_64` | macOS Intel |
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,12 +2,6 @@
 
 Terminal-based AI coding agent — fork of [Grok Build](https://x.ai/cli), rebranded for independent development.
 
-```sh
-cargo run -p xai-webuild-pager-bin              # build + launch the TUI
-cargo build -p xai-webuild-pager-bin --release  # target/release/xai-webuild-pager
-cargo check -p xai-webuild-pager-bin            # fast validation
-```
-
 CLI name: `webuild` · config home: `~/.webuild` · env prefix: `WEBUILD_*`
 
 **Default model:** `qwen3.7-max` (OpenAI-compatible chat completions via DashScope).
@@ -19,6 +13,38 @@ Switch models anytime (`/model`, `Ctrl+M`, `-m`, or `[models] default` /
 `[model.*]` in `~/.webuild/config.toml`), including baked-in `grok-build` (xAI)
 and any custom provider. Set `DASHSCOPE_API_KEY` or `QWEN_API_KEY` for the
 default Qwen endpoint; use `webuild login` / `XAI_API_KEY` when on xAI models.
+
+---
+
+## Install (end users)
+
+After a [GitHub Release](https://github.com/AgenticEconomics/webuild/releases) is published:
+
+```sh
+# Linux / macOS
+curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash
+
+# Optional: pin a version
+curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash -s -- v0.2.102
+
+export PATH="$HOME/.webuild/bin:$PATH"
+export DASHSCOPE_API_KEY="..."
+webuild --version
+webuild
+```
+
+Binary lands in `~/.webuild/bin/webuild`. See [Publishing](#publishing-curl--bash) below.
+
+---
+
+## Build from source
+
+```sh
+# Needs: Rust (rust-toolchain.toml), DotSlash or system protoc on PATH
+cargo run -p xai-webuild-pager-bin              # build + launch the TUI
+cargo build -p xai-webuild-pager-bin --release  # target/release/xai-webuild-pager
+cargo check -p xai-webuild-pager-bin            # fast validation
+```
 
 ---
 
@@ -144,3 +170,82 @@ cargo fmt --all
 ```
 
 Upstream layout notes (pre-rename) are archived in [`WEBUILD_README.md`](WEBUILD_README.md).
+
+---
+
+## Publishing (`curl | bash`)
+
+Goal: users run one curl and get a working `webuild` on Linux/macOS without compiling.
+
+### How it works
+
+```text
+You (maintainer)                         Users
+─────────────────                        ─────
+1. tag vX.Y.Z                            curl install.sh | bash
+2. GitHub Actions builds                 → GitHub API: latest release
+   linux/mac binaries                    → download webuild-<os>-<arch>
+3. Assets attached to Release            → install ~/.webuild/bin/webuild
+4. install.sh on main branch             → print PATH + quick start
+```
+
+| Piece | Path |
+|-------|------|
+| Installer | [`scripts/install.sh`](scripts/install.sh) |
+| CI release | [`.github/workflows/release.yml`](.github/workflows/release.yml) |
+| Asset names | `webuild-linux-x86_64`, `webuild-linux-aarch64`, `webuild-macos-aarch64`, `webuild-macos-x86_64` (+ `.tar.gz`) |
+
+### One-time setup
+
+1. Repo **Settings → Actions → General**: allow workflows to create releases (default `GITHUB_TOKEN` contents:write is enough for public repos).
+2. Ensure `main` contains `scripts/install.sh` (so the raw.githubusercontent.com URL works).
+3. Optional: custom domain later  
+   `curl -fsSL https://your.domain/install.sh | bash`  
+   just host the same script + point `WEBUILD_REPO` or hardcode your fork.
+
+### Cut a release
+
+```sh
+# From a clean, tested main:
+git checkout main
+git pull
+
+# Tag must match workflow filter: v*
+git tag v0.2.103
+git push origin v0.2.103
+```
+
+Or **Actions → Release → Run workflow** and enter a tag.
+
+Wait for the workflow to finish (first build can take 15–40+ minutes per platform). Confirm assets appear under:
+
+https://github.com/AgenticEconomics/webuild/releases
+
+### Verify as a user
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash
+export PATH="$HOME/.webuild/bin:$PATH"
+webuild --version
+```
+
+### Local dry-run (no GitHub Release yet)
+
+```sh
+# Build one platform yourself
+cargo build -p xai-webuild-pager-bin --release
+cp target/release/xai-webuild-pager /tmp/webuild-linux-x86_64
+
+# Manual install path users effectively get:
+mkdir -p ~/.webuild/bin
+cp /tmp/webuild-linux-x86_64 ~/.webuild/bin/webuild
+chmod +x ~/.webuild/bin/webuild
+export PATH="$HOME/.webuild/bin:$PATH"
+```
+
+### Notes
+
+- **Windows**: this curl installer is Unix-only; ship a `.exe` asset + PowerShell later if needed (`install.ps1` still exists under pager scripts for the upstream layout).
+- **Private repo**: users need `GITHUB_TOKEN=...` with `repo` scope when running install.sh.
+- **Auto-update**: in-app `webuild update` still points at upstream x.ai channels until you rewire `xai-webuild-update` to GitHub Releases; until then tell users to re-run the curl installer.
+- **CI time/cost**: four native runners; disable unused arches in the workflow matrix if you only need linux-x64 + macos-arm64.
