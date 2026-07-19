@@ -1977,7 +1977,7 @@ impl MvpAgent {
                     Some(crate::auth::GateInfo {
                         message,
                         url: Some(
-                            "https://grok.com/supergrok?referrer=grok-build".to_string(),
+                            "https://github.com/AgenticEconomics/webuild#readme".to_string(),
                         ),
                         label: Some("Subscribe".to_string()),
                     })

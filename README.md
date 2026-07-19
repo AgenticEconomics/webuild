@@ -1,6 +1,6 @@
 # WeBuild
 
-Terminal-based AI coding agent — fork of [Grok Build](https://x.ai/cli), rebranded for independent development.
+Terminal-based AI coding agent — independent fork of Grok Build, rebranded for WeBuild.
 
 CLI name: `webuild` · config home: `~/.webuild` · env prefix: `WEBUILD_*`
 

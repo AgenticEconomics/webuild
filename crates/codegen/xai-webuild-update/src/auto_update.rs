@@ -29,9 +29,9 @@ const MSG_RUN_UPDATE_MANUAL: &str = "Run `webuild update` to get the latest vers
 /// Manual-install one-liner for this platform's bootstrap installer.
 fn manual_install_cmd() -> &'static str {
     if cfg!(windows) {
-        "irm https://x.ai/cli/install.ps1 | iex"
+        "irm https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | iex"
     } else {
-        "curl -fsSL https://x.ai/cli/install.sh | bash"
+        "curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash"
     }
 }
 
@@ -39,7 +39,7 @@ fn manual_install_cmd() -> &'static str {
 fn reinstall_hint(installer: &str) -> String {
     match installer {
         "npm" => "Please reinstall via npm:\n  npm i -g @webuild/webuild".to_string(),
-        "gh-release" => "Please reinstall via GitHub Releases:\n  gh release download --repo xai-org-shared/grok-build --pattern 'webuild-*' --output webuild && chmod +x webuild".to_string(),
+        "gh-release" => "Please reinstall via GitHub Releases:\n  curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash".to_string(),
         _ => format!("Please reinstall via:\n  {}", manual_install_cmd()),
     }
 }

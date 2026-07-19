@@ -36,7 +36,7 @@ These options belong to the `webuild agent` command and apply to every mode. Pas
 
 | Flag                       | Description                                                       |
 | -------------------------- | ---------------------------------------------------------------- |
-| `-m, --model <MODEL>`      | Set the model ID (for example, `grok-build`).                    |
+| `-m, --model <MODEL>`      | Set the model ID (for example, `qwen3.7-max`).                    |
 | `--always-approve`         | Auto-approve every tool execution. (Alias: `--yolo`.)            |
 | `--reauth`                 | Run authentication before starting the agent.                    |
 | `--agent-profile <PATH>`   | Load an agent profile from a file.                               |

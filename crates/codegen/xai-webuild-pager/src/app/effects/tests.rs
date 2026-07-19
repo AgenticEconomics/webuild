@@ -31,10 +31,15 @@ fn format_acp_error_rate_limit_surfaces_detail_or_fallback() {
     assert_eq!(format_acp_error(& capacity, true), cap);
     let rpm = acp::Error::new(RATE_LIMITED_ERROR_CODE, "Rate limited")
         .data(
-            "You are sending requests too quickly. Please slow down, or upgrade to a WeBuild subscription for higher limits: https://grok.com/supergrok",
+            "You are sending requests too quickly. Please slow down, or upgrade to a WeBuild subscription for higher limits: https://github.com/AgenticEconomics/webuild#readme",
         );
-    assert!(format_acp_error(& rpm, false).contains("grok.com/supergrok"));
-    assert_eq!(format_acp_error(& rpm, true), RATE_LIMITED_USER_MESSAGE_API_KEY);
+    let rpm_oauth = format_acp_error(&rpm, false);
+    assert!(
+        rpm_oauth.contains("github.com/AgenticEconomics/webuild")
+            || rpm_oauth.to_ascii_lowercase().contains("subscription"),
+        "{rpm_oauth}"
+    );
+    assert_eq!(format_acp_error(&rpm, true), RATE_LIMITED_USER_MESSAGE_API_KEY);
     let empty = acp::Error::new(RATE_LIMITED_ERROR_CODE, "Rate limited");
     assert_eq!(format_acp_error(& empty, false), RATE_LIMITED_USER_MESSAGE_OAUTH);
     assert_eq!(format_acp_error(& empty, true), RATE_LIMITED_USER_MESSAGE_API_KEY);

@@ -33,10 +33,10 @@ pub(super) fn is_max_tier(subscription_tier: Option<&str>) -> bool {
 }
 
 /// URL for upgrading the subscription tier.
-pub(crate) const UPSELL_URL_UPGRADE: &str = "https://grok.com/supergrok?referrer=grok-build";
+pub(crate) const UPSELL_URL_UPGRADE: &str = "https://github.com/AgenticEconomics/webuild#readme";
 
 /// URL for managing pay-as-you-go / on-demand spending / purchasing credits.
-pub(crate) const UPSELL_URL_PAYG: &str = "https://grok.com?_s=usage";
+pub(crate) const UPSELL_URL_PAYG: &str = "https://github.com/AgenticEconomics/webuild#readme";
 
 /// Billing mode for credit-limit upsell copy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -543,7 +543,7 @@ pub(super) fn dispatch_open_superwebuild_url(app: &mut AppView) -> Vec<Effect> {
         .gate
         .as_ref()
         .and_then(|g| g.url.as_deref())
-        .unwrap_or("https://grok.com/supergrok?referrer=grok-build");
+        .unwrap_or("https://github.com/AgenticEconomics/webuild#readme");
     // Funnel attribution: tag CLI-originated SuperWeBuild upsell clicks
     // with `referrer=grok-build`, matching the OAuth consent flow and
     // x.ai/cli marketing links. Applied even when the URL came from

@@ -10,7 +10,10 @@
   WeBuild (<code>webuild</code>)
 </h1>
 
-**WeBuild** is SpaceXAI's terminal-based AI coding agent. It runs as a
+> **Archive note:** Upstream-oriented README snapshot. For this fork's install,
+> `qwen3.7-max` defaults, and GitHub Releases, see root [`README.md`](README.md).
+
+**WeBuild** is a terminal-based AI coding agent (independent fork of Grok Build). It runs as a
 full-screen TUI that understands your codebase, edits files, executes shell
 commands, searches the web, and manages long-running tasks — interactively,
 headlessly for scripting/CI, or embedded in editors via the Agent Client
@@ -26,7 +29,7 @@ Protocol (ACP).
 
 ![WeBuild TUI](https://media.x.ai/v1/website/universe-tui-screenshot-6f7a0837.png)
 
-**Learn more about WeBuild at [x.ai/cli](https://x.ai/cli)**
+**Learn more: [GitHub repository](https://github.com/AgenticEconomics/webuild)**
 
 This repository contains the Rust source for the `webuild` CLI/TUI and its agent
 runtime. It is synced periodically from the SpaceXAI monorepo.
@@ -43,8 +46,8 @@ for the version of the code present in this tree.
 Prebuilt binaries are published for macOS, Linux, and Windows:
 
 ```sh
-curl -fsSL https://x.ai/cli/install.sh | bash   # macOS / Linux / Git Bash
-irm https://x.ai/cli/install.ps1 | iex          # Windows PowerShell
+curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash   # macOS / Linux / Git Bash
+irm https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | iex          # Windows PowerShell
 webuild --version
 ```
 
@@ -85,7 +88,7 @@ The binary artifact is named `xai-webuild-pager`; official installs ship it as
 ## Documentation
 
 Full online documentation is available at
-[docs.x.ai/build/overview](https://docs.x.ai/build/overview).
+[the repository README](https://github.com/AgenticEconomics/webuild#readme).
 
 The user guide ships with the pager crate:
 [`crates/codegen/xai-webuild-pager/docs/user-guide/`](crates/codegen/xai-webuild-pager/docs/user-guide/)

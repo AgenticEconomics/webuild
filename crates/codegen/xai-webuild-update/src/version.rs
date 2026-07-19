@@ -11,16 +11,19 @@ use xai_webuild_shell::util::webuild_home::webuild_home;
 
 const TTL_SECONDS_BEFORE_AUTO_UPDATE: Duration = Duration::from_secs(60 * 30);
 const NPM_PACKAGE: &str = "@webuild/webuild";
-pub const GH_RELEASE_REPO: &str = "xai-org-shared/grok-build";
+/// GitHub Releases repo for this fork (`gh release list --repo …`).
+pub const GH_RELEASE_REPO: &str = "AgenticEconomics/webuild";
 
-/// Primary CLI base URL: Cloudflare-fronted x.ai endpoint with edge caching
-/// for binaries and origin-respecting no-cache for channel pointers.
-pub(crate) const CLI_BASE_URL_PRIMARY: &str = "https://x.ai/cli";
+/// Primary channel-pointer base (upstream CDN layout). This fork does not
+/// publish channel pointers here — prefer the `gh-release` installer path or
+/// re-run `scripts/install.sh`. Kept as a non-upstream URL so auto-update does
+/// not silently download SpaceXAI binaries.
+pub(crate) const CLI_BASE_URL_PRIMARY: &str =
+    "https://raw.githubusercontent.com/AgenticEconomics/webuild/main/release-channel";
 
-/// Fallback CLI base URL: direct GCS, used when the primary is unreachable
-/// (Cloudflare outage, regional CF egress issue, DNS hijack, etc.).
+/// Fallback: none for this fork (empty pointer host intentionally unused).
 pub(crate) const CLI_BASE_URL_FALLBACK: &str =
-    "https://storage.googleapis.com/grok-build-public-artifacts/cli";
+    "https://raw.githubusercontent.com/AgenticEconomics/webuild/main/release-channel";
 
 /// CLI base URLs in preference order. Callers (channel-pointer fetch, binary
 /// download, in-app updater) try each in turn and stop at the first success.

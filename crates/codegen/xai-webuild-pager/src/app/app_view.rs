@@ -6606,7 +6606,7 @@ pub(crate) mod tests {
         let mut app = test_app();
         app.gate = Some(xai_webuild_shell::auth::GateInfo {
             message: "Subscribe to use WeBuild".into(),
-            url: Some("https://grok.com/supergrok?referrer=grok-build".into()),
+            url: Some("https://github.com/AgenticEconomics/webuild#readme".into()),
             label: None,
         });
         assert!(app.is_access_blocked());

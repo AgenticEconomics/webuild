@@ -182,7 +182,7 @@ async fn run_setup_command(json: bool) {
                 println!("{out}");
                 if !report.configured {
                     eprintln!(
-                        "Your team doesn't have a managed configuration yet. A team admin can set one up at console.x.ai."
+                        "Your team doesn't have a managed configuration yet. Ask your WeBuild administrator to publish one."
                     );
                 }
             }
@@ -197,7 +197,7 @@ async fn run_setup_command(json: bool) {
         SetupOutcome::Installed => eprintln!("Applied managed configuration."),
         SetupOutcome::NothingConfigured => {
             eprintln!(
-                "Your team doesn't have a managed configuration yet. A team admin can set one up at console.x.ai."
+                "Your team doesn't have a managed configuration yet. Ask your WeBuild administrator to publish one."
             );
         }
         SetupOutcome::Skipped => {

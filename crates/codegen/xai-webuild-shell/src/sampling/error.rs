@@ -26,8 +26,8 @@ pub const RATE_LIMITED_USER_MESSAGE_OAUTH: &str =
 
 /// API key / team rate-limit copy. Personal grok.com upgrades do not raise API
 /// team limits; admins purchase credits or a higher spend-based tier.
-/// See https://docs.x.ai/developers/rate-limits#rate-limit-tiers
-pub const RATE_LIMITED_USER_MESSAGE_API_KEY: &str = "You\u{2019}ve hit your team\u{2019}s API rate limit. Ask a team admin to purchase more credits for higher limits, or try again later. See https://docs.x.ai/developers/rate-limits#rate-limit-tiers";
+/// Provider / team rate-limit copy for API-key auth.
+pub const RATE_LIMITED_USER_MESSAGE_API_KEY: &str = "You\u{2019}ve hit an API rate limit. Check your provider quota (e.g. DashScope) or try again later. Docs: https://github.com/AgenticEconomics/webuild#readme";
 
 /// Pick rate-limit copy from the *active* auth method.
 ///
@@ -51,7 +51,7 @@ pub const FREE_USAGE_EXHAUSTED_ERROR_CODE: &str = "subscription:free-usage-exhau
 
 /// User-facing free-usage exhaustion copy (paywall). Deliberately promises no
 /// reset duration — the quota window is backend-config-driven.
-pub const FREE_USAGE_USER_MESSAGE: &str = "You\u{2019}ve reached your free WeBuild usage limit for now. Get SuperWeBuild for much higher limits, or try again later: https://grok.com/supergrok?referrer=grok-build";
+pub const FREE_USAGE_USER_MESSAGE: &str = "You\u{2019}ve reached a usage limit for now. Check your model provider quota (e.g. DashScope for qwen3.7-max) or try again later. Docs: https://github.com/AgenticEconomics/webuild#readme";
 
 /// Whether flattened server detail is free-usage-quota exhaustion (paywall),
 /// not transient throttling. Sniffs the well-known code embedded by
@@ -385,7 +385,7 @@ mod tests {
         assert!(RATE_LIMITED_USER_MESSAGE_API_KEY.contains("credits"));
         assert!(
             RATE_LIMITED_USER_MESSAGE_API_KEY
-                .contains("https://docs.x.ai/developers/rate-limits#rate-limit-tiers")
+                .contains("https://github.com/AgenticEconomics/webuild#readme")
         );
         assert!(!RATE_LIMITED_USER_MESSAGE_API_KEY.contains("Upgrade your account"));
     }
@@ -403,7 +403,7 @@ mod tests {
         );
 
         // Team console rate-limit copy has no personal SuperWeBuild upsell — surface as-is.
-        let team = "resource-exhausted: Too many requests for team abc. See https://console.x.ai/team/default/rate-limits.";
+        let team = "resource-exhausted: Too many requests for team abc. See https://github.com/AgenticEconomics/webuild#readme/team/default/rate-limits.";
         assert_eq!(format_rate_limited_user_message(Some(team), true), team);
         assert_eq!(
             format_rate_limited_user_message(Some("slow down"), false),
@@ -415,7 +415,7 @@ mod tests {
     fn format_rate_limited_api_key_rewrites_consumer_subscription_upsell() {
         let rpm = "Some resource has been exhausted: You are sending requests too quickly. \
              Please slow down, or upgrade to a WeBuild subscription for higher limits: \
-             https://grok.com/supergrok";
+             https://github.com/AgenticEconomics/webuild#readme";
         // OAuth keeps the IC body (personal plan upgrade is correct).
         assert_eq!(format_rate_limited_user_message(Some(rpm), false), rpm);
         // API key must not push grok.com SuperWeBuild — team credits / rate-limit tiers.
@@ -425,7 +425,7 @@ mod tests {
         );
         assert!(
             RATE_LIMITED_USER_MESSAGE_API_KEY
-                .contains("https://docs.x.ai/developers/rate-limits#rate-limit-tiers")
+                .contains("https://github.com/AgenticEconomics/webuild#readme")
         );
         assert!(!RATE_LIMITED_USER_MESSAGE_API_KEY.contains("grok.com/supergrok"));
     }

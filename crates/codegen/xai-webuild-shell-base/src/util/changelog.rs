@@ -1,7 +1,10 @@
 //! Changelog fetching from CDN with local disk cache.
 //!
 //! Both markdown (`*.external.md`) and JSON (`*.external.json`) changelogs
-//! are published per-version to the CDN at `x.ai/cli/changelogs/`.
+//! Per-version changelogs were historically published to an xAI CDN.
+//! This fork does not host that CDN layout; fetch will no-op / miss and
+//! `/release-notes` falls back to local empty content. Prefer GitHub Releases:
+//! https://github.com/AgenticEconomics/webuild/releases
 //!
 //! `ChangelogManager::fetch()` retrieves both formats in parallel and
 //! returns a `Changelog` with optional markdown + structured entries.
@@ -11,8 +14,9 @@
 
 use std::path::PathBuf;
 
-/// CDN base for all changelogs (proxies to GCS, cache-friendly).
-const CHANGELOG_BASE: &str = "https://x.ai/cli/changelogs";
+/// Optional changelog CDN base (unused for this fork until we publish one).
+const CHANGELOG_BASE: &str =
+    "https://raw.githubusercontent.com/AgenticEconomics/webuild/main/changelogs";
 const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 
 /// A single structured changelog entry from the published JSON changelog.

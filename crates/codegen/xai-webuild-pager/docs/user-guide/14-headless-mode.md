@@ -21,7 +21,7 @@ WeBuild processes the prompt, runs any necessary tools, and prints the result to
 | Flag                    | Description                                           |
 | ----------------------- | ----------------------------------------------------- |
 | `-p, --single <PROMPT>` | The prompt to send (or use `--prompt-json` / `--prompt-file`) |
-| `-m, --model <MODEL>`   | Model to use (e.g., `grok-build`)              |
+| `-m, --model <MODEL>`   | Model to use (e.g., `qwen3.7-max`)              |
 | `-s, --session-id <ID>` | Create a **new** session with this **UUID** (errors if invalid UUID or already in use under the target session directory; does not resume — use `-r`/`-c`) |
 | `--fork-session`        | With `-r`/`-c`, fork into a new session ID instead of appending to the original |
 | `-r, --resume <ID>`     | Resume an existing session (errors if not found)      |

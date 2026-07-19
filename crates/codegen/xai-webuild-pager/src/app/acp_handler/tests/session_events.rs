@@ -184,7 +184,7 @@
             attempts: 2,
             reason: "Some resource has been exhausted: You are sending requests too quickly. \
                      Please slow down, or upgrade to a WeBuild subscription for higher limits: \
-                     https://grok.com/supergrok"
+                     https://github.com/AgenticEconomics/webuild#readme"
                 .into(),
             is_rate_limited: true,
         };

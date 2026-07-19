@@ -904,7 +904,7 @@ managed devices and accounts. Report security incidents";
         pinned.dismissible = Some(false);
         pinned.cta = Some(xai_webuild_announcements::AnnouncementCta {
             label: Some("Upgrade Account".into()),
-            url: Some("https://x.ai/webuild".into()),
+            url: Some("https://github.com/AgenticEconomics/webuild".into()),
             caption: Some("or use Ctrl+O".into()),
         });
         let mut buf = Buffer::empty(area);
@@ -954,7 +954,7 @@ managed devices and accounts. Report security incidents";
         let mut dismissible = ann(None, Some("WeBuild 4.5 is here. Upgrade now."));
         dismissible.cta = Some(xai_webuild_announcements::AnnouncementCta {
             label: Some("Upgrade Account".into()),
-            url: Some("https://x.ai/webuild".into()),
+            url: Some("https://github.com/AgenticEconomics/webuild".into()),
             caption: Some("or use Ctrl+O".into()),
         });
         let mut buf = Buffer::empty(area);

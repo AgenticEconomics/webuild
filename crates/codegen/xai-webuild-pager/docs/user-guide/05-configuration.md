@@ -10,7 +10,7 @@ CLI flags. This document covers the common options.
 Configuration is resolved in this order (highest priority first):
 
 1. **CLI flags** (e.g., `--yolo`, `--model`, `--sandbox`)
-2. **Environment variables** (e.g., `XAI_API_KEY`, `WEBUILD_MEMORY`)
+2. **Environment variables** (e.g., `DASHSCOPE_API_KEY`, `WEBUILD_MEMORY`)
 3. **config.toml** (`~/.webuild/config.toml`)
 4. **Managed / requirements config** (local files your org may deploy, e.g.
    `managed_config.toml` / `requirements.toml`)
@@ -28,11 +28,13 @@ If the file does not exist, WeBuild uses built-in defaults. Specify only the val
 
 ```toml
 [cli]
-auto_update = true                     # check for updates on launch
+# Prefer re-running install.sh for this fork; channel CDN auto-update is disabled.
+auto_update = false
 
 [models]
-default = "grok-build"           # model used for new sessions
-web_search = "grok-4.20-multi-agent"   # model used by the web_search tool
+default = "qwen3.7-max"          # default coding model (DashScope / OpenAI-compatible)
+# web_search = "qwen3.7-max"     # optional override for the web_search tool
+# default = "grok-build"         # optional xAI model (needs XAI_API_KEY)
 
 # Defaults applied to every model; a per-model [model.<id>] value always wins.
 # See "Custom Models" for the per-model overrides and full details.

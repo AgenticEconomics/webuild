@@ -1,16 +1,18 @@
 # WeBuild
 
-Bring WeBuild into your terminal. Fast, flicker-free CLI built for plans, subagents, and parallel work.
+Terminal AI coding agent (independent fork). Default model: **qwen3.7-max**.
 
-**[Homepage](https://x.ai/cli)** | **[Documentation](https://docs.x.ai/build/overview)**
+**[Repository](https://github.com/AgenticEconomics/webuild)** · **[Releases](https://github.com/AgenticEconomics/webuild/releases)**
 
 ## Install
 
 ```bash
-curl -fsSL https://x.ai/cli/install.sh | bash
+# Recommended: prebuilt binary (Linux / macOS Apple Silicon)
+curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash
+export PATH="$HOME/.webuild/bin:$PATH"
 ```
 
-Or install with npm:
+Or install with npm (when platform packages are published):
 
 ```bash
 npm i -g @webuild/webuild
@@ -19,43 +21,31 @@ npm i -g @webuild/webuild
 ## Get Started
 
 ```bash
-# Launch the interactive TUI
-webuild
-
-# Run a single task
-webuild -p "Explain this codebase"
+export DASHSCOPE_API_KEY="sk-..."   # or QWEN_API_KEY — default model qwen3.7-max
+webuild                             # interactive TUI
+webuild -p "Explain this codebase" --always-approve
 ```
 
-On first launch, WeBuild opens your browser to authenticate. For CI or headless environments, use an API key from [console.x.ai](https://console.x.ai):
-
-```bash
-export XAI_API_KEY="xai-..."
-```
+Optional xAI models: `export XAI_API_KEY=...` then `webuild -m grok-build`.
 
 ## Update
 
-```bash
-webuild update
-```
-
-Or if installed via npm:
+Re-run the curl installer, or:
 
 ```bash
-npm i -g @webuild/webuild@latest
+webuild update   # when configured for GitHub Releases / npm
+# npm i -g @webuild/webuild@latest
 ```
 
-## Supported Platforms
+## Supported Platforms (prebuilt)
 
 | Platform | Architecture |
 |---|---|
 | macOS | Apple Silicon (arm64) |
 | Linux | x86_64, arm64 |
-| Windows | x86_64 |
+
+macOS Intel: build from source. See the [repository README](https://github.com/AgenticEconomics/webuild#readme).
 
 ## Documentation
 
-For full documentation including configuration, MCP servers, custom models, headless mode, agent mode, and more, visit [docs.x.ai/build/overview](https://docs.x.ai/build/overview).
-
-## Feedback
-
-Run `/feedback` inside WeBuild to report issues or send feedback directly.
+In the TUI: `/howto` or `/docs`. Online: [GitHub README](https://github.com/AgenticEconomics/webuild#readme).
