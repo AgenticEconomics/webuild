@@ -248,4 +248,4 @@ export PATH="$HOME/.webuild/bin:$PATH"
 - **Windows**: this curl installer is Unix-only; ship a `.exe` asset + PowerShell later if needed (`install.ps1` still exists under pager scripts for the upstream layout).
 - **Private repo**: users need `GITHUB_TOKEN=...` with `repo` scope when running install.sh.
 - **Auto-update**: in-app `webuild update` still points at upstream x.ai channels until you rewire `xai-webuild-update` to GitHub Releases; until then tell users to re-run the curl installer.
-- **CI time/cost**: four native runners; disable unused arches in the workflow matrix if you only need linux-x64 + macos-arm64.
+- **CI matrix**: linux-x64, linux-arm64, macos-arm64. macOS Intel was dropped because GitHub `macos-13` x86_64 builds were unreliable and blocked the whole release.

@@ -180,6 +180,7 @@ jobs:
             | `webuild-linux-x86_64` | Linux x86_64 |
             | `webuild-linux-aarch64` | Linux arm64 |
             | `webuild-macos-aarch64` | macOS Apple Silicon |
-            | `webuild-macos-x86_64` | macOS Intel |
+
+            macOS Intel (x86_64) is not shipped as a prebuilt; build from source on those machines.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
