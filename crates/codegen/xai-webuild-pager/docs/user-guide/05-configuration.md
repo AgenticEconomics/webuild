@@ -730,7 +730,8 @@ Key environment variables. See the README for the complete list.
 
 | Variable | Description |
 |----------|-------------|
-| `XAI_API_KEY` | API key from console.x.ai |
+| `DASHSCOPE_API_KEY` / `QWEN_API_KEY` | API key for default model `qwen3.7-max` |
+| `XAI_API_KEY` | Optional API key for xAI models (e.g. `grok-build`) |
 | `WEBUILD_AUTH_PROVIDER_COMMAND` | External auth binary path |
 | `WEBUILD_AUTH_PROVIDER_LABEL` | Display name on TUI login screen |
 | `WEBUILD_AUTH_TOKEN_TTL` | Token lifetime in seconds |

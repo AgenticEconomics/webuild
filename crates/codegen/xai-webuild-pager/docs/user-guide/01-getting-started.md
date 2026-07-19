@@ -1,77 +1,96 @@
 # Getting Started
 
-WeBuild is a terminal-based AI coding assistant from SpaceXAI. It runs as a TUI (Terminal User Interface) that understands your codebase, executes shell commands, edits files, searches the web, and manages tasks.
+WeBuild is a terminal-based AI coding agent. It runs as a TUI (Terminal User
+Interface) that understands your codebase, executes shell commands, edits files,
+searches the web, and manages tasks.
 
-You can use it interactively as a full-screen TUI, run it headlessly for scripting and CI/CD, or integrate it into editors via the Agent Client Protocol (ACP).
+You can use it interactively as a full-screen TUI, run it headlessly for
+scripting and CI/CD, or integrate it into editors via the Agent Client Protocol
+(ACP).
+
+**Default model:** `qwen3.7-max` (OpenAI-compatible chat completions). Set
+`DASHSCOPE_API_KEY` or `QWEN_API_KEY` before first use. You can switch to other
+models (including optional xAI `grok-build`) with `/model` or `-m`.
 
 ---
 
 ## Installation
 
-Install the latest stable release (macOS, Linux, or Windows via Git Bash):
+### Linux / macOS (recommended)
+
+Install the latest prebuilt binary from GitHub Releases:
 
 ```bash
-curl -fsSL https://x.ai/cli/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash
 ```
 
-Install a specific version:
+Pin a version:
 
 ```bash
-curl -fsSL https://x.ai/cli/install.sh | bash -s 0.1.42
+curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash -s -- v0.3.1
 ```
 
-On **Windows (PowerShell)**, use the native PowerShell installer:
+Then put the install dir on your `PATH` if the installer asked you to:
 
-```powershell
-irm https://x.ai/cli/install.ps1 | iex
+```bash
+export PATH="$HOME/.webuild/bin:$PATH"
 ```
 
-Install a specific version:
+> **Note:** Prebuilt packages currently cover Linux x86_64/arm64 and macOS
+> Apple Silicon. On macOS Intel, build from source (below).
 
-```powershell
-$env:WEBUILD_VERSION="0.1.42"; irm https://x.ai/cli/install.ps1 | iex
+### Build from source
+
+```bash
+git clone https://github.com/AgenticEconomics/webuild.git
+cd webuild
+# Needs Rust (see rust-toolchain.toml) and protoc/DotSlash
+cargo build -p xai-webuild-pager-bin --release
+# Binary: target/release/xai-webuild-pager
 ```
 
-The PowerShell installer automatically adds `%USERPROFILE%\.webuild\bin` to your User PATH. Alternatively, install via [Git for Windows](https://gitforwindows.org/) (Git Bash) or MSYS2 using the bash script above. WSL users get the Linux binary automatically.
-
-Verify the installation:
+### Verify
 
 ```bash
 webuild --version
+# or
+./target/release/xai-webuild-pager --version
 ```
 
-Update to the latest version at any time:
-
-```bash
-webuild update
-```
+Re-run the curl installer to upgrade when a new release is published (in-app
+`webuild update` may still point at upstream channels).
 
 ---
 
 ## First Launch
 
-Start WeBuild by running:
+Set an API key for the default model, then start WeBuild:
 
 ```bash
+export DASHSCOPE_API_KEY="sk-..."   # or QWEN_API_KEY
 webuild
 ```
 
-On first launch, WeBuild opens your browser to authenticate with grok.com. After you sign in, WeBuild stores your credentials in `~/.webuild/auth.json`, where they persist across sessions. WeBuild refreshes your credentials automatically and prompts you to sign in again when they can no longer be renewed.
+WeBuild opens the TUI and uses `qwen3.7-max` by default. No browser login is
+required for the Qwen / OpenAI-compatible path.
 
-If you prefer API key authentication (e.g., for CI/CD or environments without a browser), set the `XAI_API_KEY` environment variable instead:
+### Optional: other providers
 
-```bash
-export XAI_API_KEY="xai-..."
-webuild
-```
+| Goal | Setup |
+|------|--------|
+| Keep Qwen as default | `DASHSCOPE_API_KEY` or `QWEN_API_KEY` |
+| Use xAI Grok models | `export XAI_API_KEY="xai-..."` then `/model grok-build` or `webuild -m grok-build` |
+| Custom OpenAI-compatible gateway | `[model.*]` in `~/.webuild/config.toml` — see [Custom Models](11-custom-models.md) |
+| Browser / OIDC login (legacy proxy flows) | See [Authentication](02-authentication.md) |
 
-See [Authentication](02-authentication.md) for the full set of auth options including OIDC, external auth providers, and device code flow.
+See [Authentication](02-authentication.md) for the full credential precedence
+and enterprise OIDC / external auth options.
 
 ---
 
 ## Basic Interaction
 
-Once authenticated, WeBuild presents a full-screen TUI with two main areas:
+Once running, WeBuild presents a full-screen TUI with two main areas:
 
 - **Scrollback** -- the conversation history showing your prompts, WeBuild's responses, tool calls, file edits, and more.
 - **Prompt** -- the input area at the bottom where you type messages.
@@ -151,7 +170,9 @@ Tools can be extended with [MCP servers](05-configuration.md#mcp-servers) for in
 Type `/` in the prompt to access commands. These provide quick actions without writing a full prompt:
 
 ```
-/model grok-build                 # Switch model
+/model qwen3.7-max                # Default model
+/model grok-build                 # Optional xAI model (needs XAI_API_KEY)
+/howto                            # In-app user guides (this content)
 /compact                          # Compress conversation history
 /always-approve                   # Toggle always-approve mode
 /new                              # Start a new session
@@ -186,6 +207,7 @@ webuild --rules "Always use TypeScript. Prefer functional components."
 webuild --yolo
 
 # Use a specific model
+webuild -m qwen3.7-max
 webuild -m grok-build
 
 # Resume a previous session
@@ -212,7 +234,8 @@ webuild -p "Explain this codebase"
 Run WeBuild non-interactively for scripting, CI/CD, and automation:
 
 ```bash
-webuild -p "Your prompt here"
+export DASHSCOPE_API_KEY="sk-..."
+webuild -p "Your prompt here" --always-approve
 ```
 
 Output formats:
@@ -249,7 +272,8 @@ Deeper files take precedence. WeBuild also reads `CLAUDE.md` files for compatibi
 
 | Document | What You Will Learn |
 |----------|-------------------|
-| [Authentication](02-authentication.md) | Browser login, API keys, OIDC, external auth, device code flow |
+| [Authentication](02-authentication.md) | API keys, optional browser/OIDC login, external auth |
 | [Keyboard Shortcuts](03-keyboard-shortcuts.md) | Complete reference for all key bindings |
 | [Slash Commands](04-slash-commands.md) | All available `/` commands |
 | [Configuration](05-configuration.md) | config.toml, pager.toml, environment variables |
+| [Custom Models](11-custom-models.md) | Default qwen3.7-max, xAI, and other providers |

@@ -1,6 +1,8 @@
 # WeBuild User Guide
 
-Learn how to install, configure, and extend WeBuild, the terminal-based AI coding assistant from SpaceXAI.
+Learn how to install, configure, and extend WeBuild — a terminal-based AI coding
+agent (independent fork). Default model: `qwen3.7-max` via DashScope /
+OpenAI-compatible APIs; optional xAI and custom providers.
 
 ---
 

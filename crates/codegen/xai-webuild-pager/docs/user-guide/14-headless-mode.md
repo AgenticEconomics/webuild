@@ -453,16 +453,25 @@ Key environment variables that affect headless mode:
 
 | Variable                        | Description                                                   |
 | ------------------------------- | ------------------------------------------------------------- |
-| `XAI_API_KEY`        | API key for authentication (required when no browser login)   |
+| `DASHSCOPE_API_KEY` / `QWEN_API_KEY` | API key for default model `qwen3.7-max` |
+| `XAI_API_KEY`        | Optional API key for xAI models (e.g. `grok-build`) |
 | `WEBUILD_HOME`                    | Override config directory (default: `~/.webuild`)                |
 | `WEBUILD_LOG_FILE`                | Path to a log file (used verbatim as the path; works in headless and TUI, honors `RUST_LOG`) |
 | `RUST_LOG`                     | Log level filter (e.g. `debug`). Headless logs to stderr.     |
 
-For CI environments without browser access, set `XAI_API_KEY` with an API key from [console.x.ai](https://console.x.ai):
+For CI environments, set a provider API key. Default model (`qwen3.7-max`) uses DashScope/Qwen:
+
+```bash
+export DASHSCOPE_API_KEY="sk-..."
+# or: export QWEN_API_KEY="sk-..."
+webuild -p "Run the test suite" --yolo
+```
+
+For optional xAI models:
 
 ```bash
 export XAI_API_KEY="xai-..."
-webuild -p "Run the test suite" --yolo
+webuild -m grok-build -p "Run the test suite" --yolo
 ```
 
 ---
@@ -482,12 +491,11 @@ webuild -p "Run the test suite" --yolo
 
 For headless use, authenticate with one of:
 
-- **`XAI_API_KEY`** — simplest for CI. See [Environment Variables](#environment-variables-for-headless) above.
-- **`webuild login --device-auth`** (or `--device-code`) — no browser needed on the target machine.
-  See [Authentication > Device Code Flow](02-authentication.md#device-code-flow).
-- **`webuild login`** — browser-based OAuth2 on machines with a GUI.
-
-If you've previously logged in, cached credentials are used automatically.
+- **`DASHSCOPE_API_KEY` / `QWEN_API_KEY`** — simplest for the default model in CI.
+- **`XAI_API_KEY`** — when using optional xAI models (`-m grok-build`).
+- Per-model `api_key` / `env_key` in `~/.webuild/config.toml`.
+- **`webuild login --device-auth`** / browser OAuth — only when using session-token
+  / proxy-oriented models. See [Authentication](02-authentication.md).
 
 ---
 

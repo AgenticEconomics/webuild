@@ -1,64 +1,103 @@
 # Authentication
 
-WeBuild supports several authentication methods, including interactive browser login, enterprise single sign-on (SSO), and headless CI/CD runners.
+WeBuild resolves credentials per model. For this fork the **default model is
+`qwen3.7-max`**, which uses an OpenAI-compatible API key (DashScope / Qwen).
+Optional xAI Grok models and enterprise SSO flows remain available when you
+configure them.
 
 ---
 
-## Browser Login (Default)
+## API keys (recommended default)
 
-On first launch, WeBuild opens your browser to authenticate with grok.com:
+### Qwen / DashScope (default model)
 
 ```bash
+export DASHSCOPE_API_KEY="sk-..."
+# or
+export QWEN_API_KEY="sk-..."
 webuild
 ```
 
-WeBuild stores credentials in `~/.webuild/auth.json` and reuses them across sessions. WeBuild refreshes access tokens automatically in the background. When a token can't be refreshed, WeBuild prompts you to sign in again. Credentials without a server-provided expiry fall back to a 30-day lifetime.
+These env vars are wired into the baked-in `qwen3.7-max` catalog entry
+(`default_models.json`). You can also pin a key in config:
 
-### Re-authenticate
-
-To switch accounts or resolve an authentication problem, run:
-
-```bash
-webuild login
+```toml
+# ~/.webuild/config.toml
+[model."qwen3.7-max"]
+api_key = "sk-..."
+# or: env_key = "DASHSCOPE_API_KEY"
 ```
 
-Running `webuild login` starts the sign-in flow again, replacing your cached session. By default, it opens your browser and signs in through SpaceXAI OAuth at `auth.x.ai`. Pass a flag to select a different flow:
+Create keys in your DashScope / Alibaba Cloud console (or whatever gateway
+you point `base_url` at).
 
-| Flag | Description |
-|------|-------------|
-| `--oauth` | Sign in through SpaceXAI OAuth at `auth.x.ai`. This is the default, so the flag is optional. |
-| `--device-auth` (alias `--device-code`) | Sign in with the device-code flow for headless or remote environments. |
+### Other OpenAI-compatible providers
 
-To sign out, run `webuild logout`. It takes no flags and clears your cached credentials.
+```toml
+[model.my-model]
+model = "your-model-id"
+base_url = "https://api.example.com/v1"
+api_backend = "chat_completions"
+env_key = "MY_API_KEY"
+```
 
----
+```bash
+export MY_API_KEY="..."
+webuild -m my-model
+```
 
-## API Key
+See [Custom Models](11-custom-models.md).
 
-For CI/CD, automation, or environments without browser access, use an API key from [console.x.ai](https://console.x.ai):
+### Optional: xAI Grok
+
+For baked-in `grok-build` (and other xAI catalog rows when present):
 
 ```bash
 export XAI_API_KEY="xai-..."
-webuild
+webuild -m grok-build
 ```
 
-WeBuild uses the API key as a fallback when no session token is active. If you have already signed in interactively, the stored session token takes precedence. To fall back to the API key, run `webuild logout` or delete `~/.webuild/auth.json`.
+Or obtain a session via browser login (below) when using xAI dual-route models.
+
+---
+
+## Browser login (optional / xAI-oriented)
+
+Some catalog entries still support session-token auth against a chat proxy
+(historical SpaceXAI flow). On first launch **without** a provider API key,
+WeBuild may open a browser sign-in:
+
+```bash
+webuild
+# or force re-auth:
+webuild login
+```
+
+| Flag | Description |
+|------|-------------|
+| `--oauth` | Browser OAuth (default when using this flow) |
+| `--device-auth` (alias `--device-code`) | Device-code flow for headless / remote environments |
+
+Credentials are stored in `~/.webuild/auth.json` and refreshed in the background
+when the provider supports it. Sign out with `webuild logout`.
+
+> For day-to-day use with `qwen3.7-max`, prefer `DASHSCOPE_API_KEY` /
+> `QWEN_API_KEY` — you do not need browser login.
 
 ---
 
 ## OIDC (Customer SSO)
 
-Authenticate developers through your own Identity Provider (IdP) -- such as Okta, Azure AD, or Auth0 -- instead of grok.com.
+Authenticate through your own Identity Provider (IdP) — such as Okta, Azure AD,
+or Auth0 — instead of a public browser login.
 
 ### 1. Register a public client in your IdP
 
-- Grant type: Authorization Code with PKCE (Proof Key for Code Exchange)
-- Redirect URI: `http://127.0.0.1/callback` -- a loopback address. WeBuild binds a random port at sign-in time, and most IdPs treat the loopback redirect as port-agnostic per [RFC 8252](https://tools.ietf.org/html/rfc8252).
-- No client secret. PKCE replaces it.
+- Grant type: Authorization Code with PKCE
+- Redirect URI: `http://127.0.0.1/callback` (loopback; port is chosen at runtime)
+- No client secret (PKCE)
 
 ### 2. Configure the CLI
-
-Via config file:
 
 ```toml
 # ~/.webuild/config.toml
@@ -67,14 +106,14 @@ issuer = "https://acme.okta.com"
 client_id = "0oa1b2c3d4e5f6g7h8i9"
 ```
 
-Or via environment variables:
+Or:
 
 ```bash
 export WEBUILD_OIDC_ISSUER="https://acme.okta.com"
 export WEBUILD_OIDC_CLIENT_ID="0oa1b2c3d4e5f6g7h8i9"
 ```
 
-You can also override the API endpoint to point at your own proxy:
+Optional proxy override for org-managed inference:
 
 ```bash
 export WEBUILD_CLI_CHAT_PROXY_BASE_URL="https://webuild-proxy.acme.com/v1"
@@ -82,26 +121,26 @@ export WEBUILD_CLI_CHAT_PROXY_BASE_URL="https://webuild-proxy.acme.com/v1"
 
 ### 3. Run `webuild`
 
-The CLI discovers endpoints via `{issuer}/.well-known/openid-configuration`, opens the IdP login page, and stores tokens in `~/.webuild/auth.json`. Tokens auto-refresh silently via the stored `refresh_token`.
-
-### Optional fields
+The CLI discovers `{issuer}/.well-known/openid-configuration`, opens the IdP
+login page, and stores tokens in `~/.webuild/auth.json`.
 
 | Field | Default | Notes |
 |-------|---------|-------|
-| `scopes` | `["openid", "profile", "email", "offline_access", "api:access"]` | `offline_access` enables silent token refresh |
-| `audience` | None | Required by some IdPs (e.g., Auth0) |
+| `scopes` | `["openid", "profile", "email", "offline_access", "api:access"]` | `offline_access` enables silent refresh |
+| `audience` | None | Required by some IdPs (e.g. Auth0) |
 
 ---
 
 ## External Auth Provider
 
-When browser-based login isn't possible -- for example, on sandboxed VMs, CI runners, or air-gapped networks -- delegate authentication to an external binary or script.
+When browser login is not possible (sandboxed VMs, CI, air-gapped networks),
+delegate authentication to an external binary or script.
 
 ### How It Works
 
 ```
 +--------------+     sh -c     +------------------------+
-|     WeBuild     |-------------->|  your auth binary      |
+|   WeBuild    |-------------->|  your auth binary      |
 |              |               |                        |
 |  reads       |<-- stdout ----|  prints token          |
 |  auth.json   |               |                        |
@@ -110,191 +149,59 @@ When browser-based login isn't possible -- for example, on sandboxed VMs, CI run
 ```
 
 1. WeBuild runs your command via `sh -c "<command>"`
-2. Your binary runs whatever auth flow it needs (SSO, device code, certificate exchange)
-3. **stderr** carries human-readable output, such as login URLs and status messages. WeBuild reads stderr and surfaces it to the user; in the TUI, it turns the first `https://` URL into a clickable sign-in link.
-4. **stdout** is captured by WeBuild and saved as the access token
-5. Exit 0 = success; exit non-zero = WeBuild falls back to interactive login
+2. Your binary runs whatever auth flow it needs
+3. **stderr** is human-readable (login URLs, status); WeBuild may surface the first `https://` URL as a clickable link in the TUI
+4. **stdout** is the access token WeBuild stores
+5. Exit 0 = success; non-zero falls back to other configured methods
 
 ### The stdout / stderr Contract
 
 | Stream | What to print | Who sees it |
 |--------|---------------|-------------|
-| **stdout** | The token -- nothing else | WeBuild (parsed and stored in auth.json) |
-| **stderr** | Login URLs, status messages, errors | The user (WeBuild reads stderr and shows the sign-in URL as a clickable link in the TUI) |
+| stdout | Access token only (no extra text) | WeBuild only |
+| stderr | Status, errors, login URLs | User (via TUI / logs) |
 
-**Do not print anything to stdout except the token.** No progress messages, no debug output. WeBuild reads stdout, trims surrounding whitespace, and parses the result as a token.
-
-### stdout Token Format
-
-**Bare string** -- just the raw token:
-
-```
-eyJhbGciOiJSUzI1NiIs...
-```
-
-**JSON** -- with optional refresh token, expiry, and issuer:
-
-```json
-{"access_token": "eyJhbGciOi...", "refresh_token": "ref-tok", "expires_in": 3600, "issuer": "https://idp.example.com"}
-```
-
-Use JSON if your tokens expire and you want WeBuild to automatically re-run the binary before expiry.
-
-JSON fields:
-
-| Field | Required | Meaning |
-|-------|----------|---------|
-| `access_token` | yes | Bearer token WeBuild sends to the xAI API |
-| `refresh_token` | no | Stored for reference. WeBuild refreshes by re-running your binary, not with an OAuth refresh grant |
-| `expires_in` | no | Token lifetime in seconds; enables proactive refresh before expiry |
-| `issuer` | no | Identifies the token's issuer |
-
-### Configuration
-
-Via config file:
-
-```toml
-# ~/.webuild/config.toml
-[auth]
-auth_provider_command = "/usr/local/bin/my-auth-provider"
-auth_provider_label = "Acme Corp"   # optional -- customizes the TUI login button
-auth_token_ttl = 3600               # optional -- token lifetime in seconds
-```
-
-Or via environment variables:
-
-```bash
-export WEBUILD_AUTH_PROVIDER_COMMAND="/usr/local/bin/my-auth-provider"
-export WEBUILD_AUTH_PROVIDER_LABEL="Acme Corp"
-export WEBUILD_AUTH_TOKEN_TTL=3600
-```
-
-### Token Refresh
-
-When WeBuild needs to refresh an expired token, it re-runs your binary with `WEBUILD_AUTH_EXPIRED=1` set in the environment. Each run fully replaces the stored credential, so emit the same JSON fields (such as `issuer`) on every invocation, including refreshes. Your binary can use this to take a faster silent-refresh path:
-
-```bash
-#!/bin/sh
-if [ "$WEBUILD_AUTH_EXPIRED" = "1" ]; then
-    echo "Refreshing token..." >&2
-    TOKEN=$(my-company-auth --refresh --silent)
-else
-    echo "Authenticating via Acme Corp SSO..." >&2
-    TOKEN=$(my-company-auth --login --interactive)
-fi
-
-if [ -z "$TOKEN" ]; then
-    echo "Authentication failed" >&2
-    exit 1
-fi
-
-echo "{\"access_token\": \"$TOKEN\", \"expires_in\": 3600}"
-```
-
-### Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `WEBUILD_AUTH_PROVIDER_COMMAND` | Path to your auth binary |
-| `WEBUILD_AUTH_PROVIDER_LABEL` | Display name on the TUI login screen (e.g., "Acme Corp") |
-| `WEBUILD_AUTH_TOKEN_TTL` | Token lifetime in seconds (for bare-string tokens without `expires_in`) |
-| `WEBUILD_AUTH_EXPIRED` | Set to `1` by WeBuild when re-running the binary for token refresh |
-| `WEBUILD_AUTH_EARLY_INVALIDATION_SECS` | Seconds before expiry to proactively refresh (default: 300) |
-
----
-
-## Device Code Flow
-
-For headless environments (SSH sessions, Docker containers, remote VMs) where no browser is available locally:
-
-```bash
-webuild login --device-auth    # or: webuild login --device-code
-```
-
-This prints a URL and code to the terminal. Open the URL on any device, enter the code, and complete authentication. WeBuild polls until the login is confirmed.
-
-You can also implement the device-code flow through an [External Auth Provider](#external-auth-provider) for full control.
-
----
-
-## Automatic Credential Refresh
-
-WeBuild automatically refreshes expired credentials:
-
-- **Before expiry:** If your auth provider returned `expires_in` (JSON output) or you set `auth_token_ttl`, WeBuild re-runs the auth binary ~5 minutes before expiry.
-- **On auth error:** If the server returns 401 Unauthorized, WeBuild refreshes the credentials and retries the request.
-- **OIDC:** If a `refresh_token` is available, WeBuild silently refreshes via your IdP without re-opening the browser.
-
-Tune the refresh buffer:
-
-```bash
-# Refresh 5 minutes before expiry (default)
-export WEBUILD_AUTH_EARLY_INVALIDATION_SECS=300
-
-# Disable the proactive buffer: refresh at expiry or on a 401 (set to 0)
-export WEBUILD_AUTH_EARLY_INVALIDATION_SECS=0
-```
+Configure with `auth_provider_command` under your auth config (see
+`~/.webuild/config.toml` examples in [Configuration](05-configuration.md)).
 
 ---
 
 ## Hot Reload
 
-WeBuild picks up changes to `~/.webuild/auth.json` automatically. If you update credentials externally (for example, with a script that writes new tokens), WeBuild uses the new credentials on the next API call without a restart.
+WeBuild picks up changes to `~/.webuild/auth.json` automatically. If you update
+credentials externally, the next API call uses them without a restart.
 
 ---
 
 ## Auth Precedence
 
-WeBuild resolves credentials for each request in this order, highest to lowest:
+WeBuild resolves credentials for each request, highest to lowest:
 
-1. **Per-model `api_key` or `env_key`** -- set under `[model.<name>]` in `config.toml`. Wins whenever present.
-2. **Active session token** -- obtained through browser, OIDC/OAuth2, or external-provider login and stored in `~/.webuild/auth.json`.
-3. **`XAI_API_KEY`** -- fallback when no session token is active.
+1. **Per-model `api_key` or `env_key`** — `[model.<name>]` in `config.toml` (includes the default `qwen3.7-max` env keys)
+2. **Active session token** — browser / OIDC / external provider in `~/.webuild/auth.json`
+3. **`XAI_API_KEY`** — global fallback (mainly for xAI-oriented models)
 
-When more than one login flow is configured, WeBuild populates the session token from the first available source, highest to lowest:
+When more than one login flow is configured, the session token is filled from
+the first available source:
 
 1. **External auth provider** (`auth_provider_command`)
-2. **Enterprise OIDC** -- when OIDC is configured, through `[webuild_com_config.oidc]` in `config.toml` or the `WEBUILD_OIDC_ISSUER` and `WEBUILD_OIDC_CLIENT_ID` environment variables
-3. **SpaceXAI OAuth2 browser login** -- the default
+2. **Enterprise OIDC** — `[webuild_com_config.oidc]` or `WEBUILD_OIDC_*`
+3. **Browser OAuth** — optional legacy / proxy-oriented flow
 
-During a session, the active method handles all mid-session refreshes.
+During a session, the active method handles mid-session refreshes.
 
 ---
 
 ## Troubleshooting
 
+### Default model returns 401
+
+- Confirm `echo ${#DASHSCOPE_API_KEY}` (or `QWEN_API_KEY`) is non-zero in the same shell
+- Confirm you did not override `[model."qwen3.7-max"]` with a wrong `api_key`
+- Check `base_url` if you use a custom gateway
+
 ### Debug logging
 
-Set `RUST_LOG` to control the verbosity of the file log and headless stderr output. (The TUI's on-screen tracing pane uses a fixed filter and ignores `RUST_LOG`.) In the TUI, file logging defaults to `DEBUG`; in headless mode (`-p`), `RUST_LOG` defaults to `off` so only the answer is printed — set `RUST_LOG=error` (or broader) to see logs on stderr.
-
-In the TUI, set `WEBUILD_LOG_FILE` to an absolute path to write logs to that file:
-
-```bash
-WEBUILD_LOG_FILE=/tmp/webuild.log RUST_LOG=debug webuild
-tail -f /tmp/webuild.log
-```
-
-`WEBUILD_LOG_FILE` is treated as a literal file path. A relative value such as `1` writes a file named `1` in the current directory.
-
-In headless mode, logs go to stderr. Redirect them to a file:
-
-```bash
-RUST_LOG=debug webuild -p "hello" 2> /tmp/webuild.log
-```
-
-### Common log messages
-
-| Log message | What it means |
-|-------------|---------------|
-| `auth: running external auth provider` | WeBuild is running your binary |
-| `auth: external auth provider returned fresh token` | WeBuild parsed and stored the token |
-| `auth: external auth provider failed` | Binary exited non-zero or stdout was empty |
-| `auth: external auth provider timed out (likely needs interactive auth), killing` | Binary did not exit before the timeout and was killed |
-| `auth: failed to start external auth provider` | Command could not be spawned (binary not found) |
-
-### Common fixes
-
-- **"Authentication failed"** -- Run `webuild logout` to clear cached credentials, then `webuild login` to sign in again.
-- **Token expires too quickly** -- Set `auth_token_ttl` or return `expires_in` in your auth provider's JSON output.
-- **OIDC redirect fails** -- Ensure your IdP allows loopback redirect URIs (`http://127.0.0.1/callback`).
-- **External auth provider not found** -- Check that the `auth_provider_command` path is correct and the binary is executable.
+Set `RUST_LOG` for file log / headless stderr verbosity. In headless mode (`-p`),
+`RUST_LOG` defaults to `off` so only the answer is printed — set
+`RUST_LOG=error` (or broader) to see logs on stderr.
