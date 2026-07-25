@@ -28,7 +28,7 @@ build:
   tags:
     - linux
   before_script:
-    - . "$HOME/.cargo/env" 2>/dev/null || true
+    - export PATH="/root/.cargo/bin:$PATH"
     - rustup target add "$TARGET" 2>/dev/null || true
     - rustc --version && cargo --version && protoc --version
   script:
