@@ -432,7 +432,7 @@ pub fn method_id_after_cached_token_unavailable(
 }
 
 /// Error when no API key is configured (default fork path / preferred_method=api_key).
-pub const PREFERRED_API_KEY_UNAVAILABLE: &str = "No API key configured. For the default model (qwen3.7-max), set DASHSCOPE_API_KEY or QWEN_API_KEY. For xAI models set XAI_API_KEY, or add api_key/env_key under [model.*] in ~/.webuild/config.toml. See: https://github.com/AgenticEconomics/webuild#readme";
+pub const PREFERRED_API_KEY_UNAVAILABLE: &str = "No API key configured. For the default model (qwen3.7-max), set DASHSCOPE_API_KEY or QWEN_API_KEY. For xAI models set XAI_API_KEY, or add api_key/env_key under [model.*] in ~/.webuild/config.toml. See: https://git.jarvikheart.cn/jerryzhang/webuild#readme";
 
 /// Error when `preferred_method=oidc` but the session path cannot proceed.
 pub const PREFERRED_OIDC_UNAVAILABLE: &str =

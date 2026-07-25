@@ -18,16 +18,16 @@ models (including optional xAI `grok-build`) with `/model` or `-m`.
 
 ### Linux / macOS (recommended)
 
-Install the latest prebuilt binary from GitHub Releases:
+Install the latest prebuilt binary from GitLab Releases:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash
+curl -fsSL https://git.jarvikheart.cn/jerryzhang/webuild/-/raw/main/scripts/install.sh | bash
 ```
 
 Pin a version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash -s -- v0.3.1
+curl -fsSL https://git.jarvikheart.cn/jerryzhang/webuild/-/raw/main/scripts/install.sh | bash -s -- v0.3.1
 ```
 
 Then put the install dir on your `PATH` if the installer asked you to:
@@ -42,7 +42,7 @@ export PATH="$HOME/.webuild/bin:$PATH"
 ### Build from source
 
 ```bash
-git clone https://github.com/AgenticEconomics/webuild.git
+git clone https://git.jarvikheart.cn/jerryzhang/webuild.git
 cd webuild
 # Needs Rust (see rust-toolchain.toml) and protoc/DotSlash
 cargo build -p xai-webuild-pager-bin --release

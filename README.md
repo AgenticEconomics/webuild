@@ -18,14 +18,14 @@ default Qwen endpoint; use `webuild login` / `XAI_API_KEY` when on xAI models.
 
 ## Install (end users)
 
-After a [GitHub Release](https://github.com/AgenticEconomics/webuild/releases) is published:
+After a [GitLab Release](https://git.jarvikheart.cn/jerryzhang/webuild/-/releases) is published:
 
 ```sh
 # Linux / macOS
-curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash
+curl -fsSL https://git.jarvikheart.cn/jerryzhang/webuild/-/raw/main/scripts/install.sh | bash
 
 # Optional: pin a version
-curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash -s -- v0.2.102
+curl -fsSL https://git.jarvikheart.cn/jerryzhang/webuild/-/raw/main/scripts/install.sh | bash -s -- v0.2.102
 
 export PATH="$HOME/.webuild/bin:$PATH"
 export DASHSCOPE_API_KEY="..."
@@ -192,16 +192,14 @@ You (maintainer)                         Users
 | Piece | Path |
 |-------|------|
 | Installer | [`scripts/install.sh`](scripts/install.sh) |
-| CI release | [`.github/workflows/release.yml`](.github/workflows/release.yml) |
+| CI release | [`.gitlab-ci.yml`](.gitlab-ci.yml) |
 | Asset names | `webuild-linux-x86_64`, `webuild-linux-aarch64`, `webuild-macos-aarch64` (+ `.tar.gz`) — macOS Intel is not prebuilt |
 
 ### One-time setup
 
-1. Repo **Settings → Actions → General**: allow workflows to create releases (default `GITHUB_TOKEN` contents:write is enough for public repos).
-2. Ensure `main` contains `scripts/install.sh` (so the raw.githubusercontent.com URL works).
-3. Optional: custom domain later  
-   `curl -fsSL https://your.domain/install.sh | bash`  
-   just host the same script + point `WEBUILD_REPO` or hardcode your fork.
+1. Repo **Settings → CI/CD → Variables**: add `GITLAB_RELEASE_TOKEN` (a personal access token with `api` scope) so the publish job can create releases and upload assets.
+2. Ensure runners with tags `linux, docker` and `linux-arm64, docker` are registered (Settings → CI/CD → Runners).
+3. Optional: custom domain later — host `install.sh` and set `GITLAB_HOST` or `WEBUILD_REPO`.
 
 ### Cut a release
 
@@ -210,26 +208,26 @@ You (maintainer)                         Users
 git checkout main
 git pull
 
-# Tag must match workflow filter: v*
-git tag v0.2.103
-git push origin v0.2.103
+# Tag must match CI filter: v*
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
-Or **Actions → Release → Run workflow** and enter a tag.
+Or **CI/CD → Pipelines → Run pipeline** for a manual trigger.
 
-Wait for the workflow to finish (first build can take 15–40+ minutes per platform). Confirm assets appear under:
+Wait for the pipeline to finish (first build can take 15–40+ minutes per platform). Confirm assets appear under:
 
-https://github.com/AgenticEconomics/webuild/releases
+https://git.jarvikheart.cn/jerryzhang/webuild/-/releases
 
 ### Verify as a user
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash
+curl -fsSL https://git.jarvikheart.cn/jerryzhang/webuild/-/raw/main/scripts/install.sh | bash
 export PATH="$HOME/.webuild/bin:$PATH"
 webuild --version
 ```
 
-### Local dry-run (no GitHub Release yet)
+### Local dry-run (no GitLab Release yet)
 
 ```sh
 # Build one platform yourself
@@ -246,6 +244,6 @@ export PATH="$HOME/.webuild/bin:$PATH"
 ### Notes
 
 - **Windows**: this curl installer is Unix-only; ship a `.exe` asset + PowerShell later if needed (`install.ps1` still exists under pager scripts for the upstream layout).
-- **Private repo**: users need `GITHUB_TOKEN=...` with `repo` scope when running install.sh.
-- **Auto-update**: in-app `webuild update` still points at upstream x.ai channels until you rewire `xai-webuild-update` to GitHub Releases; until then tell users to re-run the curl installer.
+- **Private repo**: users need `GITLAB_TOKEN=...` with `read_api` scope when running install.sh.
+- **Auto-update**: in-app `webuild update` still points at upstream x.ai channels until you rewire `xai-webuild-update` to GitLab Releases; until then tell users to re-run the curl installer.
 - **CI matrix**: linux-x64, linux-arm64, macos-arm64. macOS Intel was dropped because GitHub `macos-13` x86_64 builds were unreliable and blocked the whole release.

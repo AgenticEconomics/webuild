@@ -141,7 +141,7 @@ mod tests {
         let block = CreditLimitBlock::new(
             "You\u{2019}ve hit your credit limit.",
             CreditLimitCardAction::EnablePayg,
-            "https://github.com/AgenticEconomics/webuild#readme",
+            "https://git.jarvikheart.cn/jerryzhang/webuild#readme",
         );
         let output = block.output(&ctx());
         let all_text: String = output
@@ -159,7 +159,7 @@ mod tests {
         let block = CreditLimitBlock::new(
             "You\u{2019}ve hit your spending cap.",
             CreditLimitCardAction::IncreasePaygLimit,
-            "https://github.com/AgenticEconomics/webuild#readme",
+            "https://git.jarvikheart.cn/jerryzhang/webuild#readme",
         );
         let output = block.output(&ctx());
         let all_text: String = output
@@ -177,7 +177,7 @@ mod tests {
         let block = CreditLimitBlock::new(
             "You hit your weekly limit.",
             CreditLimitCardAction::PurchaseCredits,
-            "https://github.com/AgenticEconomics/webuild#readme",
+            "https://git.jarvikheart.cn/jerryzhang/webuild#readme",
         );
         let output = block.output(&ctx());
         let all_text: String = output
@@ -215,7 +215,7 @@ mod tests {
 
     #[test]
     fn output_structure_and_content() {
-        let url = "https://github.com/AgenticEconomics/webuild#readme";
+        let url = "https://git.jarvikheart.cn/jerryzhang/webuild#readme";
         let block = CreditLimitBlock::new("Test heading", CreditLimitCardAction::EnablePayg, url);
         let output = block.output(&ctx());
 

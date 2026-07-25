@@ -1,24 +1,29 @@
 #!/usr/bin/env bash
 #
-# WeBuild installer (GitHub Releases)
+# WeBuild installer (GitLab Releases)
 #
 # Install the latest (or a pinned) prebuilt binary for Linux / macOS:
 #
-#   curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash
+#   curl -fsSL https://git.jarvikheart.cn/jerryzhang/webuild/-/raw/main/scripts/install.sh | bash
 #   curl -fsSL .../install.sh | bash -s -- v0.2.102
-#   WEBUILD_REPO=you/webuild bash <(curl -fsSL .../install.sh)
+#   WEBUILD_REPO=group/project bash <(curl -fsSL .../install.sh)
 #
 # Env:
-#   WEBUILD_REPO      owner/name (default: AgenticEconomics/webuild)
-#   WEBUILD_BIN_DIR   install dir (default: ~/.webuild/bin)
-#   WEBUILD_VERSION   pin a release tag (e.g. v0.2.102); same as first arg
-#   GITHUB_TOKEN      optional; higher API rate limit / private releases
+#   GITLAB_HOST     GitLab instance URL (default: https://git.jarvikheart.cn)
+#   WEBUILD_REPO    namespace/project (default: jerryzhang/webuild)
+#   WEBUILD_BIN_DIR install dir (default: ~/.webuild/bin)
+#   WEBUILD_VERSION pin a release tag (e.g. v0.2.102); same as first arg
+#   GITLAB_TOKEN    optional; for private projects
 #
 set -euo pipefail
 
-REPO="${WEBUILD_REPO:-AgenticEconomics/webuild}"
+GITLAB_HOST="${GITLAB_HOST:-https://git.jarvikheart.cn}"
+REPO="${WEBUILD_REPO:-jerryzhang/webuild}"
 BIN_DIR="${WEBUILD_BIN_DIR:-$HOME/.webuild/bin}"
 VERSION="${WEBUILD_VERSION:-${1:-}}"
+
+# URL-encode the project path for GitLab API (e.g. jerryzhang/webuild → jerryzhang%2Fwebuild)
+PROJECT_ID="${REPO//\//%2F}"
 
 if ! command -v curl >/dev/null 2>&1; then
   echo "error: curl is required" >&2
@@ -49,32 +54,31 @@ if [ "$os" = "macos" ] && [ "$arch" = "x86_64" ]; then
   echo "error: no prebuilt binary for macOS Intel (x86_64)." >&2
   echo "       Releases ship webuild-macos-aarch64 (Apple Silicon) only." >&2
   echo "       On Intel Macs, build from source:" >&2
-  echo "         git clone https://github.com/${REPO}.git && cd webuild" >&2
+  echo "         git clone ${GITLAB_HOST}/${REPO}.git && cd webuild" >&2
   echo "         cargo build -p xai-webuild-pager-bin --release" >&2
   exit 1
 fi
 
-# Asset names published by .github/workflows/release.yml
+# Asset names published by .gitlab-ci.yml
 ASSET="webuild-${os}-${arch}"
-API="https://api.github.com/repos/${REPO}"
+API="${GITLAB_HOST}/api/v4/projects/${PROJECT_ID}"
 auth_hdr=()
-if [ -n "${GITHUB_TOKEN:-}" ]; then
-  auth_hdr=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+if [ -n "${GITLAB_TOKEN:-}" ]; then
+  auth_hdr=(-H "PRIVATE-TOKEN: ${GITLAB_TOKEN}")
 fi
 
 echo "WeBuild installer" >&2
+echo "  gitlab:   ${GITLAB_HOST}" >&2
 echo "  repo:     ${REPO}" >&2
 echo "  platform: ${os}-${arch}" >&2
 
 if [ -z "$VERSION" ]; then
   echo "  resolving latest release..." >&2
-  meta=$(curl -fsSL "${auth_hdr[@]}" \
-    -H "Accept: application/vnd.github+json" \
-    "${API}/releases/latest")
+  meta=$(curl -fsSL "${auth_hdr[@]}" "${API}/releases/permalink/latest")
   VERSION=$(printf '%s' "$meta" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
   if [ -z "$VERSION" ]; then
     echo "error: could not resolve latest release for ${REPO}" >&2
-    echo "       create a GitHub Release first (see docs in README)." >&2
+    echo "       create a GitLab Release first (see docs in README)." >&2
     exit 1
   fi
 else
@@ -84,18 +88,39 @@ else
     *) VERSION="v${VERSION}" ;;
   esac
   echo "  version:  ${VERSION}" >&2
-  meta=$(curl -fsSL "${auth_hdr[@]}" \
-    -H "Accept: application/vnd.github+json" \
-    "${API}/releases/tags/${VERSION}")
+  meta=$(curl -fsSL "${auth_hdr[@]}" "${API}/releases/${VERSION}")
 fi
 
 echo "  release:  ${VERSION}" >&2
 
-# Prefer browser_download_url for the matching asset name (exact or .tar.gz)
-download_url=$(printf '%s' "$meta" | tr ',' '\n' | sed -n "s/.*\"browser_download_url\"[[:space:]]*:[[:space:]]*\"\\([^\"]*${ASSET}[^\"]*\\)\".*/\\1/p" | head -1)
+# Find download URL by matching asset link name in release metadata.
+# GitLab release assets are stored as links with name + url.
+download_url=$(printf '%s' "$meta" | tr ',' '\n' | \
+  sed -n "s/.*\"name\"[[:space:]]*:[[:space:]]*\"\([^\"]*${ASSET}[^\"]*\)\".*/\1/p" | head -1)
+
+if [ -n "$download_url" ]; then
+  # We matched by name; now extract the corresponding url
+  # Parse assets.links array to find the matching entry
+  download_url=""
+  # Use a more robust parse: extract each link object
+  link_block=$(printf '%s' "$meta" | tr -d '\n' | \
+    sed 's/.*"links"[[:space:]]*:[[:space:]]*\[//;s/\].*//' | \
+    sed 's/},{/}\n{/g')
+  while IFS= read -r link; do
+    link_name=$(printf '%s' "$link" | sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+    link_url=$(printf '%s' "$link" | sed -n 's/.*"url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+    case "$link_name" in
+      *"$ASSET"*)
+        download_url="$link_url"
+        break
+        ;;
+    esac
+  done <<< "$link_block"
+fi
+
 if [ -z "$download_url" ]; then
   # Fallback: construct conventional release asset URL
-  download_url="https://github.com/${REPO}/releases/download/${VERSION}/${ASSET}"
+  download_url="${GITLAB_HOST}/${REPO}/-/releases/${VERSION}/downloads/${ASSET}"
 fi
 
 tmpdir=$(mktemp -d)
@@ -174,18 +199,18 @@ echo >&2
 echo "Installed ${ver:-webuild} → $BIN_DIR/webuild" >&2
 echo >&2
 
-# Persist installer source so `webuild update` hints at GitHub reinstall.
+# Persist installer source so `webuild update` hints at GitLab reinstall.
 CONFIG_FILE="$HOME/.webuild/config.toml"
 mkdir -p "$HOME/.webuild"
 if [ ! -f "$CONFIG_FILE" ]; then
-  printf '[cli]\ninstaller = "gh-release"\nauto_update = false\n' > "$CONFIG_FILE"
+  printf '[cli]\ninstaller = "gitlab-release"\nauto_update = false\n' > "$CONFIG_FILE"
 elif ! grep -q '^\[cli\]' "$CONFIG_FILE" 2>/dev/null; then
-  printf '\n[cli]\ninstaller = "gh-release"\nauto_update = false\n' >> "$CONFIG_FILE"
+  printf '\n[cli]\ninstaller = "gitlab-release"\nauto_update = false\n' >> "$CONFIG_FILE"
 elif ! grep -q 'installer\s*=' "$CONFIG_FILE" 2>/dev/null; then
   # Insert installer under existing [cli] without clobbering user settings.
   tmp="$CONFIG_FILE.tmp.$$"
   awk '
-    /^\[cli\][[:space:]]*(#.*)?$/ { print; print "installer = \"gh-release\""; print "auto_update = false"; next }
+    /^\[cli\][[:space:]]*(#.*)?$/ { print; print "installer = \"gitlab-release\""; print "auto_update = false"; next }
     { print }
   ' "$CONFIG_FILE" > "$tmp" && mv "$tmp" "$CONFIG_FILE"
 fi
