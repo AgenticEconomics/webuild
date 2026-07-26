@@ -24,7 +24,7 @@ build:
   variables:
     TARGET: x86_64-unknown-linux-gnu
     ASSET: webuild-linux-x86_64
-    BIN: xai-webbuild-pager
+    BIN: xai-webuild-pager
     WEBUILD_TOOLS_BUNDLE_RG_PATH: /usr/bin/rg
     WEBUILD_SHELL_BUNDLE_RG_PATH: /usr/bin/rg
   tags:
