@@ -20,18 +20,18 @@ pub struct WeBuildEndpoints {
     pub ws_origin: &'static str,
 }
 const PRODUCTION_ENDPOINTS: WeBuildEndpoints = WeBuildEndpoints {
-    cli_chat_proxy_base_url: "https://webuild.jarvikheart.cn/api/auth",
-    asset_server_url: "https://webuild.jarvikheart.cn",
-    relay_ws_url: "wss://webuild.jarvikheart.cn/ws/relay",
-    gateway_ws_url: "wss://webuild.jarvikheart.cn/ws/gateway",
-    ws_origin: "https://webuild.jarvikheart.cn",
+    cli_chat_proxy_base_url: "https://webuild.agentics-economics.org/api/auth",
+    asset_server_url: "https://webuild.agentics-economics.org",
+    relay_ws_url: "wss://webuild.agentics-economics.org/ws/relay",
+    gateway_ws_url: "wss://webuild.agentics-economics.org/ws/gateway",
+    ws_origin: "https://webuild.agentics-economics.org",
 };
 const STAGING_ENDPOINTS: WeBuildEndpoints = WeBuildEndpoints {
-    cli_chat_proxy_base_url: "https://webuild.jarvikheart.cn/api/auth",
-    asset_server_url: "https://webuild.jarvikheart.cn",
-    relay_ws_url: "wss://webuild.jarvikheart.cn/ws/relay",
-    gateway_ws_url: "wss://webuild.jarvikheart.cn/ws/gateway",
-    ws_origin: "https://webuild.jarvikheart.cn",
+    cli_chat_proxy_base_url: "https://webuild.agentics-economics.org/api/auth",
+    asset_server_url: "https://webuild.agentics-economics.org",
+    relay_ws_url: "wss://webuild.agentics-economics.org/ws/relay",
+    gateway_ws_url: "wss://webuild.agentics-economics.org/ws/gateway",
+    ws_origin: "https://webuild.agentics-economics.org",
 };
 pub const PROD_CLI_CHAT_PROXY_BASE_URL: &str = PRODUCTION_ENDPOINTS.cli_chat_proxy_base_url;
 pub const PROD_ASSET_SERVER_URL: &str = PRODUCTION_ENDPOINTS.asset_server_url;
@@ -223,8 +223,8 @@ mod tests {
     #[test]
     fn staging_endpoints_use_webuild_domain() {
         let staging = WeBuildEnvironment::Staging;
-        assert!(staging.relay_ws_url().contains("webuild.jarvikheart.cn"));
-        assert!(staging.gateway_ws_url().contains("webuild.jarvikheart.cn"));
-        assert!(staging.ws_origin().contains("webuild.jarvikheart.cn"));
+        assert!(staging.relay_ws_url().contains("webuild.agentics-economics.org"));
+        assert!(staging.gateway_ws_url().contains("webuild.agentics-economics.org"));
+        assert!(staging.ws_origin().contains("webuild.agentics-economics.org"));
     }
 }
