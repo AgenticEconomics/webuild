@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   nginx:
     image: nginx:alpine
@@ -20,7 +18,9 @@ services:
     restart: unless-stopped
 
   auth-service:
-    build: ../services/auth
+    build:
+      context: ../services
+      dockerfile: auth/Dockerfile
     image: registry.cn-hangzhou.aliyuncs.com/webuild/auth-service:latest
     environment:
       - DATABASE_URL=postgresql://webuild:${DB_PASSWORD}@postgres:5432/webuild
@@ -36,7 +36,9 @@ services:
     restart: unless-stopped
 
   relay-server:
-    build: ../services/relay
+    build:
+      context: ../services
+      dockerfile: relay/Dockerfile
     image: registry.cn-hangzhou.aliyuncs.com/webuild/relay-server:latest
     environment:
       - AUTH_SERVICE_URL=http://auth-service:8001
@@ -49,7 +51,9 @@ services:
     restart: unless-stopped
 
   hub-broker:
-    build: ../services/hub
+    build:
+      context: ../services
+      dockerfile: hub/Dockerfile
     image: registry.cn-hangzhou.aliyuncs.com/webuild/hub-broker:latest
     environment:
       - AUTH_SERVICE_URL=http://auth-service:8001
@@ -60,7 +64,9 @@ services:
     restart: unless-stopped
 
   gateway:
-    build: ../services/gateway
+    build:
+      context: ../services
+      dockerfile: gateway/Dockerfile
     image: registry.cn-hangzhou.aliyuncs.com/webuild/gateway:latest
     environment:
       - AUTH_SERVICE_URL=http://auth-service:8001

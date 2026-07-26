@@ -1,30 +1,22 @@
-FROM python:3.11-slim AS base
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system deps for asyncpg build
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
+    sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null; \
+    apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy shared library first (layer caching)
-COPY ../shared /tmp/shared
+COPY pip.conf /etc/pip.conf
+COPY shared /tmp/shared
 RUN pip install --no-cache-dir /tmp/shared && rm -rf /tmp/shared
 
-# Copy project files
-COPY pyproject.toml ./
+COPY auth/pyproject.toml ./pyproject.toml
+COPY auth/src/ ./src/
+COPY auth/alembic/ ./alembic/
+COPY auth/alembic.ini ./alembic.ini
 RUN pip install --no-cache-dir .
-
-COPY src/ ./src/
-
-# Runtime stage
-FROM python:3.11-slim AS runtime
-
-WORKDIR /app
-
-COPY --from=base /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=base /usr/local/bin /usr/local/bin
-COPY --from=base /app/src ./src
 
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8001

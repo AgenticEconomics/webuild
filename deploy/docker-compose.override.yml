@@ -1,14 +1,17 @@
-version: "3.9"
+# Local development overrides — no TLS, no Nginx, direct port access
+# Usage: docker compose up (auto-loads both files)
 
 services:
+  # Disable production-only services
   nginx:
     profiles: ["production"]
 
   certbot:
     profiles: ["production"]
 
+  # Use local images
   auth-service:
-    build: ../services/auth
+    image: webuild-auth:local
     ports:
       - "8001:8001"
     environment:
@@ -16,25 +19,26 @@ services:
       - JWT_SECRET=dev-secret-key-not-for-production
 
   relay-server:
-    build: ../services/relay
+    image: webuild-relay:local
     ports:
       - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://webuild:devpass@postgres:5432/webuild
+      - JWT_SECRET=dev-secret-key-not-for-production
 
   hub-broker:
-    build: ../services/hub
+    image: webuild-hub:local
     ports:
       - "8003:8003"
 
   gateway:
-    build: ../services/gateway
+    image: webuild-gateway:local
     ports:
       - "8004:8004"
     profiles: ["sandbox"]
 
   web-ide:
-    build: ../services/web-ide
-    ports:
-      - "3000:3000"
+    profiles: ["frontend"]  # Skip until built
 
   postgres:
     ports:

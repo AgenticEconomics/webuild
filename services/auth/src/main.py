@@ -30,19 +30,15 @@ async def lifespan(app: FastAPI):
     engine = get_engine()
     app.state.engine = engine
 
-    # Run Alembic migrations if alembic.ini / env present
+    # Create tables directly (simpler than Alembic for initial deployment)
     try:
-        from alembic import command
-        from alembic.config import Config
+        from webuild_shared.models import Base  # noqa: F401
 
-        alembic_cfg = Config("alembic.ini")
-        alembic_cfg.attributes["connection"] = engine
-        command.upgrade(alembic_cfg, "head")
-        log.info("auth_service.migrations_complete")
-    except FileNotFoundError:
-        log.warning("auth_service.no_alembic_ini", detail="Skipping migrations")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        log.info("auth_service.tables_created")
     except Exception as exc:
-        log.error("auth_service.migration_failed", error=str(exc))
+        log.error("auth_service.table_creation_failed", error=str(exc))
 
     yield
 
