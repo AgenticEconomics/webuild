@@ -21,6 +21,7 @@ variables:
 # ── Build multi-platform binaries ──────────────────────────────────────────
 build:
   stage: build
+  timeout: 2h
   variables:
     TARGET: x86_64-unknown-linux-gnu
     ASSET: webuild-linux-x86_64
