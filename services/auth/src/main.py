@@ -64,7 +64,8 @@ def create_app() -> FastAPI:
     )
 
     # Mount routers
-    app.include_router(auth.router, prefix="/auth", tags=["auth"])
+    # Routes mounted at root — Caddy strips /api/auth prefix via handle_path
+    app.include_router(auth.router, tags=["auth"])
     app.include_router(users.router, prefix="/users", tags=["users"])
     app.include_router(api_keys.router, prefix="/api-keys", tags=["api-keys"])
 
