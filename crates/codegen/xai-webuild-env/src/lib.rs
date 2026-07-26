@@ -20,11 +20,18 @@ pub struct WeBuildEndpoints {
     pub ws_origin: &'static str,
 }
 const PRODUCTION_ENDPOINTS: WeBuildEndpoints = WeBuildEndpoints {
-    cli_chat_proxy_base_url: "https://cli-chat-proxy.grok.com/v1",
-    asset_server_url: "https://assets.grok.com",
-    relay_ws_url: "wss://code.grok.com/ws/code-agent",
-    gateway_ws_url: "wss://grok.com/ws/gw/",
-    ws_origin: "https://grok.com",
+    cli_chat_proxy_base_url: "https://webuild.jarvikheart.cn/api/auth",
+    asset_server_url: "https://webuild.jarvikheart.cn",
+    relay_ws_url: "wss://webuild.jarvikheart.cn/ws/relay",
+    gateway_ws_url: "wss://webuild.jarvikheart.cn/ws/gateway",
+    ws_origin: "https://webuild.jarvikheart.cn",
+};
+const STAGING_ENDPOINTS: WeBuildEndpoints = WeBuildEndpoints {
+    cli_chat_proxy_base_url: "https://webuild.jarvikheart.cn/api/auth",
+    asset_server_url: "https://webuild.jarvikheart.cn",
+    relay_ws_url: "wss://webuild.jarvikheart.cn/ws/relay",
+    gateway_ws_url: "wss://webuild.jarvikheart.cn/ws/gateway",
+    ws_origin: "https://webuild.jarvikheart.cn",
 };
 pub const PROD_CLI_CHAT_PROXY_BASE_URL: &str = PRODUCTION_ENDPOINTS.cli_chat_proxy_base_url;
 pub const PROD_ASSET_SERVER_URL: &str = PRODUCTION_ENDPOINTS.asset_server_url;
@@ -35,15 +42,21 @@ pub const PROD_WS_ORIGIN: &str = PRODUCTION_ENDPOINTS.ws_origin;
 pub enum WeBuildEnvironment {
     #[default]
     Production,
+    Staging,
 }
 impl WeBuildEnvironment {
-    pub fn from_flags(_dev: bool, _staging: bool) -> Self {
-        WeBuildEnvironment::Production
+    pub fn from_flags(_dev: bool, staging: bool) -> Self {
+        if staging {
+            WeBuildEnvironment::Staging
+        } else {
+            WeBuildEnvironment::Production
+        }
     }
     /// Indicator string for display; `None` for Production.
     pub fn indicator(&self) -> Option<&'static str> {
         match self {
             WeBuildEnvironment::Production => None,
+            WeBuildEnvironment::Staging => Some("staging"),
         }
     }
     pub fn is_production(&self) -> bool {
@@ -52,12 +65,14 @@ impl WeBuildEnvironment {
     fn env_prefix(&self) -> &'static str {
         match self {
             WeBuildEnvironment::Production => "WEBUILD_PRODUCTION",
+            WeBuildEnvironment::Staging => "WEBUILD_STAGING",
         }
     }
     /// Compiled endpoint set for this environment (production by default).
     pub fn endpoints(&self) -> WeBuildEndpoints {
         match self {
             WeBuildEnvironment::Production => PRODUCTION_ENDPOINTS,
+            WeBuildEnvironment::Staging => STAGING_ENDPOINTS,
         }
     }
     /// Env-var override when set, else the compiled endpoint.
@@ -93,6 +108,7 @@ impl std::fmt::Display for WeBuildEnvironment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             WeBuildEnvironment::Production => write!(f, "production"),
+            WeBuildEnvironment::Staging => write!(f, "staging"),
         }
     }
 }
@@ -193,5 +209,22 @@ mod tests {
             WeBuildEnvironment::from_flags(false, false),
             WeBuildEnvironment::Production
         );
+        assert_eq!(
+            WeBuildEnvironment::from_flags(false, true),
+            WeBuildEnvironment::Staging
+        );
+        assert_eq!(
+            WeBuildEnvironment::from_flags(true, true),
+            WeBuildEnvironment::Staging,
+            "staging flag takes precedence over dev"
+        );
+    }
+
+    #[test]
+    fn staging_endpoints_use_webuild_domain() {
+        let staging = WeBuildEnvironment::Staging;
+        assert!(staging.relay_ws_url().contains("webuild.jarvikheart.cn"));
+        assert!(staging.gateway_ws_url().contains("webuild.jarvikheart.cn"));
+        assert!(staging.ws_origin().contains("webuild.jarvikheart.cn"));
     }
 }
