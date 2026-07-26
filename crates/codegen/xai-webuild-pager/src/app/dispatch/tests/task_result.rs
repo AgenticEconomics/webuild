@@ -1553,7 +1553,7 @@ fn gate_refreshed_emits_check_subscription_on_gate_lift() {
     // User starts gated (no subscription).
     app.gate = Some(xai_webuild_shell::auth::GateInfo {
         message: "SuperWeBuild subscription required".into(),
-        url: Some("https://github.com/AgenticEconomics/webuild#readme".into()),
+        url: Some("https://git.jarvikheart.cn/jerryzhang/webuild#readme".into()),
         label: Some("Subscribe".into()),
     });
     assert!(!app.has_access());

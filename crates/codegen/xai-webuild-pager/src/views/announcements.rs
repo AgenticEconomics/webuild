@@ -1502,7 +1502,7 @@ mod tests {
         let mut ann = promo(
             "p",
             "New promo",
-            Some(("Get SuperWeBuild", "https://github.com/AgenticEconomics/webuild")),
+            Some(("Get SuperWeBuild", "https://git.jarvikheart.cn/jerryzhang/webuild")),
         );
         ann.cta.as_mut().unwrap().caption = Some("or use Ctrl+O".into());
         let anns = [ann];

@@ -1,3 +1,19 @@
 /target
+/builds
 **/*.rs.bk
 .DS_Store
+
+# Phase II services
+services/**/node_modules/
+services/**/.next/
+services/**/__pycache__/
+services/**/dist/
+services/**/*.egg-info/
+deploy/secrets/
+deploy/certbot/
+deploy/.env
+*.pyc
+.env
+.env.local
+.kube/
+config

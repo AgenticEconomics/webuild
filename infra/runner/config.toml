@@ -1,0 +1,29 @@
+concurrent = 1
+check_interval = 0
+connection_max_age = "15m0s"
+shutdown_timeout = 0
+
+[session_server]
+  session_timeout = 1800
+
+[[runners]]
+  name = "iZbp15m8vg7fxa4t4guo4zZ"
+  url = "https://git.jarvikheart.cn"
+  id = 3
+  token = "REPLACE_WITH_RUNNER_TOKEN"
+  token_obtained_at = "2026-07-25T13:44:04Z"
+  token_expires_at = "0001-01-01T00:00:00Z"
+  executor = "shell"
+  environment = [
+    "RUSTUP_DIST_SERVER=https://rsproxy.cn",
+    "RUSTUP_UPDATE_ROOT=https://rsproxy.cn/rustup",
+    "RUSTUP_HOME=/root/.rustup",
+    "CARGO_HOME=/root/.cargo",
+    "PATH=/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+  ]
+  [runners.cache]
+    MaxUploadedArchiveSize = 0
+    [runners.cache.s3]
+      AssumeRoleMaxConcurrency = 0
+    [runners.cache.gcs]
+    [runners.cache.azure]

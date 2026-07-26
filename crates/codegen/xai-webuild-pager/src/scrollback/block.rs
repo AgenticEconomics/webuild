@@ -1574,11 +1574,11 @@ mod searchable_text_tests {
         let block = RenderBlock::credit_limit_card(
             "credit limit reached",
             crate::scrollback::blocks::CreditLimitCardAction::EnablePayg,
-            "https://github.com/AgenticEconomics/webuild#readme",
+            "https://git.jarvikheart.cn/jerryzhang/webuild#readme",
         );
         let text = block.searchable_text().expect("credit limit text");
         assert!(text.contains("credit limit reached"), "got: {text:?}");
-        assert!(text.contains("https://github.com/AgenticEconomics/webuild#readme"), "got: {text:?}");
+        assert!(text.contains("https://git.jarvikheart.cn/jerryzhang/webuild#readme"), "got: {text:?}");
     }
 
     #[test]

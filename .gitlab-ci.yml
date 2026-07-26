@@ -1,0 +1,230 @@
+# GitLab CI/CD — Release pipeline for WeBuild
+#
+# Trigger:
+#   git tag v0.3.0 && git push origin v0.3.0
+#   — or: CI/CD → Pipelines → Run pipeline (manual)
+#
+# Users install with:
+#   curl -fsSL https://git.jarvikheart.cn/jerryzhang/webuild/-/raw/main/scripts/install.sh | bash
+
+stages:
+  - build
+  - build-images
+  - publish
+  - deploy
+
+variables:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+  GITLAB_HOST: "https://git.jarvikheart.cn"
+  RUSTUP_DIST_SERVER: "https://rsproxy.cn"
+  RUSTUP_UPDATE_ROOT: "https://rsproxy.cn/rustup"
+
+# ── Build multi-platform binaries ──────────────────────────────────────────
+build:
+  stage: build
+  timeout: 2h
+  variables:
+    TARGET: x86_64-unknown-linux-gnu
+    ASSET: webuild-linux-x86_64
+    BIN: xai-webuild-pager
+    WEBUILD_TOOLS_BUNDLE_RG_PATH: /usr/bin/rg
+    WEBUILD_SHELL_BUNDLE_RG_PATH: /usr/bin/rg
+  tags:
+    - linux
+  before_script:
+    - export PATH="/root/.cargo/bin:$PATH"
+    - rustup target add "$TARGET" 2>/dev/null || true
+    - rustc --version && cargo --version && protoc --version
+  script:
+    - cargo build -p xai-webuild-pager-bin --release --target "$TARGET"
+    - mkdir -p dist
+    - cp "target/$TARGET/release/$BIN" "dist/$ASSET"
+    - chmod +x "dist/$ASSET"
+    - tar -C dist -czf "dist/$ASSET.tar.gz" "$ASSET"
+    - ls -lh dist/
+    - ./dist/$ASSET --version || true
+  artifacts:
+    paths:
+      - dist/*.tar.gz
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+# ── Publish GitLab Release with binary assets ──────────────────────────────
+publish:
+  stage: publish
+  tags:
+    - linux
+  needs:
+    - job: build
+      artifacts: true
+  before_script:
+    - command -v jq >/dev/null 2>&1 || apt-get install -y -qq jq
+  script:
+    - |
+      TAG="$CI_COMMIT_TAG"
+      case "$TAG" in v*) ;; *) TAG="v$TAG" ;; esac
+      echo "Publishing release $TAG ..."
+
+      # Collect all artifact files
+      mkdir -p release-assets
+      find . -path './dist/*' -type f \( -name 'webuild-*' \) -exec cp -v {} release-assets/ \;
+      ls -lah release-assets/
+
+      # Check if release already exists; delete to recreate with fresh assets
+      HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+        --header "PRIVATE-TOKEN: $GITLAB_RELEASE_TOKEN" \
+        "${GITLAB_HOST}/api/v4/projects/${CI_PROJECT_ID}/releases/${TAG}")
+      if [ "$HTTP_CODE" = "200" ]; then
+        echo "Release $TAG already exists, deleting..."
+        curl -s --request DELETE \
+          --header "PRIVATE-TOKEN: $GITLAB_RELEASE_TOKEN" \
+          "${GITLAB_HOST}/api/v4/projects/${CI_PROJECT_ID}/releases/${TAG}"
+      fi
+
+      # Upload binaries as project uploads (permanent URLs)
+      ASSET_LINKS=""
+      for file in release-assets/webuild-*; do
+        [ -f "$file" ] || continue
+        fname=$(basename "$file")
+        echo "Uploading $fname ..."
+
+        # Upload file
+        UPLOAD_RESP=$(curl -s --request POST \
+          --header "PRIVATE-TOKEN: $GITLAB_RELEASE_TOKEN" \
+          --form "file=@${file}" \
+          "${GITLAB_HOST}/api/v4/projects/${CI_PROJECT_ID}/uploads")
+
+        FULL_PATH=$(echo "$UPLOAD_RESP" | jq -r '.full_path // empty')
+        if [ -z "$FULL_PATH" ]; then
+          echo "error: upload failed for $fname: $UPLOAD_RESP" >&2
+          exit 1
+        fi
+
+        UPLOAD_URL="${GITLAB_HOST}${FULL_PATH}"
+        echo "  -> $UPLOAD_URL"
+
+        # Build asset_links JSON array
+        if [ -z "$ASSET_LINKS" ]; then
+          ASSET_LINKS="["
+        else
+          ASSET_LINKS="${ASSET_LINKS},"
+        fi
+        ASSET_LINKS="${ASSET_LINKS}{\"name\":\"${fname}\",\"url\":\"${UPLOAD_URL}\",\"link_type\":\"package\"}"
+      done
+      ASSET_LINKS="${ASSET_LINKS}]"
+
+      # Write release description
+      cat > /tmp/release-description.md <<'DESCEOF'
+      ## Install (Linux / macOS)
+
+      ```bash
+      curl -fsSL GITLAB_HOST/jerryzhang/webuild/-/raw/main/scripts/install.sh | bash
+      ```
+
+      Pin a version:
+
+      ```bash
+      curl -fsSL GITLAB_HOST/jerryzhang/webuild/-/raw/main/scripts/install.sh | bash -s -- TAG_PLACEHOLDER
+      ```
+
+      ## After install
+
+      ```bash
+      export PATH="$HOME/.webuild/bin:$PATH"
+      export DASHSCOPE_API_KEY=...   # default model: qwen3.7-max
+      webuild --version
+      webuild
+      ```
+
+      ## Assets
+
+      | File | Platform |
+      |------|----------|
+      | `webuild-linux-x86_64` | Linux x86_64 |
+      | `webuild-linux-aarch64` | Linux arm64 |
+      | `webuild-macos-aarch64` | macOS Apple Silicon |
+      DESCEOF
+      sed -i "s|GITLAB_HOST|${GITLAB_HOST}|g; s|TAG_PLACEHOLDER|${TAG}|g" /tmp/release-description.md
+
+      # Create GitLab Release with asset links
+      echo "Creating release $TAG with assets..."
+      curl -s --fail --request POST \
+        --header "PRIVATE-TOKEN: $GITLAB_RELEASE_TOKEN" \
+        --header "Content-Type: application/json" \
+        --data "$(jq -n \
+          --arg tag "$TAG" \
+          --arg name "WeBuild $TAG" \
+          --arg desc "$(cat /tmp/release-description.md)" \
+          --argjson links "$ASSET_LINKS" \
+          '{
+            tag_name: $tag,
+            name: $name,
+            description: $desc,
+            assets: { links: $links }
+          }')" \
+        "${GITLAB_HOST}/api/v4/projects/${CI_PROJECT_ID}/releases"
+
+      echo ""
+      echo "Release $TAG published successfully!"
+      echo "${GITLAB_HOST}/${CI_PROJECT_PATH}/-/releases/${TAG}"
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+
+# ── Build Docker images for Phase II services ─────────────────────────────────
+build-images:
+  stage: build-images
+  tags:
+    - linux
+  variables:
+    ACR_REGISTRY: "registry.cn-hangzhou.aliyuncs.com/webuild"
+  script:
+    - echo "$ACR_PASSWORD" | docker login $ACR_REGISTRY --username "$ACR_USERNAME" --password-stdin
+    - |
+      for svc in auth relay hub gateway; do
+        echo "Building $svc..."
+        docker build -t "$ACR_REGISTRY/${svc}-service:$CI_COMMIT_SHA" \
+          -t "$ACR_REGISTRY/${svc}-service:latest" \
+          "services/$svc/"
+        docker push "$ACR_REGISTRY/${svc}-service:$CI_COMMIT_SHA"
+        docker push "$ACR_REGISTRY/${svc}-service:latest"
+      done
+    - |
+      echo "Building web-ide..."
+      docker build -t "$ACR_REGISTRY/web-ide:$CI_COMMIT_SHA" \
+        -t "$ACR_REGISTRY/web-ide:latest" \
+        services/web-ide/
+      docker push "$ACR_REGISTRY/web-ide:$CI_COMMIT_SHA"
+      docker push "$ACR_REGISTRY/web-ide:latest"
+    - |
+      echo "Building sandbox..."
+      cp dist/webuild-linux-x86_64 sandbox/webuild-linux-x86_64 2>/dev/null || true
+      docker build -t "$ACR_REGISTRY/sandbox:$CI_COMMIT_SHA" \
+        -t "$ACR_REGISTRY/sandbox:latest" \
+        sandbox/
+      docker push "$ACR_REGISTRY/sandbox:$CI_COMMIT_SHA"
+      docker push "$ACR_REGISTRY/sandbox:latest"
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "web"
+
+# ── Deploy to ECS via SSH ─────────────────────────────────────────────────────
+deploy-ecs:
+  stage: deploy
+  when: manual
+  environment: production
+  tags:
+    - linux
+  script:
+    - |
+      ssh -o StrictHostKeyChecking=no "$ECS_USER@$ECS_IP" "
+        cd /opt/webuild/deploy &&
+        docker compose pull &&
+        docker compose up -d --remove-orphans &&
+        docker image prune -f
+      "
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/

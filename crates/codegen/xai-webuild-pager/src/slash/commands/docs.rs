@@ -9,7 +9,7 @@ use crate::docs::{all_titles, find_doc};
 use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
 
 /// Online docs landing page for this fork (GitHub README + install notes).
-pub const BUILD_DOCS_URL: &str = "https://github.com/AgenticEconomics/webuild#readme";
+pub const BUILD_DOCS_URL: &str = "https://git.jarvikheart.cn/jerryzhang/webuild#readme";
 
 /// Open How-to Guides or online Build docs.
 pub struct DocsCommand;

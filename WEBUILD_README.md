@@ -11,7 +11,7 @@
 </h1>
 
 > **Archive note:** Upstream-oriented README snapshot. For this fork's install,
-> `qwen3.7-max` defaults, and GitHub Releases, see root [`README.md`](README.md).
+> `qwen3.7-max` defaults, and GitLab Releases, see root [`README.md`](README.md).
 
 **WeBuild** is a terminal-based AI coding agent (independent fork of Grok Build). It runs as a
 full-screen TUI that understands your codebase, edits files, executes shell
@@ -29,7 +29,7 @@ Protocol (ACP).
 
 ![WeBuild TUI](https://media.x.ai/v1/website/universe-tui-screenshot-6f7a0837.png)
 
-**Learn more: [GitHub repository](https://github.com/AgenticEconomics/webuild)**
+**Learn more: [GitLab repository](https://git.jarvikheart.cn/jerryzhang/webuild)**
 
 This repository contains the Rust source for the `webuild` CLI/TUI and its agent
 runtime. It is synced periodically from the SpaceXAI monorepo.
@@ -46,8 +46,8 @@ for the version of the code present in this tree.
 Prebuilt binaries are published for macOS, Linux, and Windows:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash   # macOS / Linux / Git Bash
-irm https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | iex          # Windows PowerShell
+curl -fsSL https://git.jarvikheart.cn/jerryzhang/webuild/-/raw/main/scripts/install.sh | bash   # macOS / Linux / Git Bash
+irm https://git.jarvikheart.cn/jerryzhang/webuild/-/raw/main/scripts/install.sh | iex          # Windows PowerShell
 webuild --version
 ```
 
@@ -88,7 +88,7 @@ The binary artifact is named `xai-webuild-pager`; official installs ship it as
 ## Documentation
 
 Full online documentation is available at
-[the repository README](https://github.com/AgenticEconomics/webuild#readme).
+[the repository README](https://git.jarvikheart.cn/jerryzhang/webuild#readme).
 
 The user guide ships with the pager crate:
 [`crates/codegen/xai-webuild-pager/docs/user-guide/`](crates/codegen/xai-webuild-pager/docs/user-guide/)

@@ -60,7 +60,7 @@ impl SlashCommand for UsageCommand {
         match arg {
             "" | "show" => CommandResult::Action(Action::ShowUsage),
             "manage" => {
-                CommandResult::Action(Action::OpenUrl("https://github.com/AgenticEconomics/webuild#readme".to_string()))
+                CommandResult::Action(Action::OpenUrl("https://git.jarvikheart.cn/jerryzhang/webuild#readme".to_string()))
             }
             _ => CommandResult::Error(format!(
                 "Unknown argument: {arg}. Use /usage show or /usage manage"

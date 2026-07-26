@@ -46,7 +46,7 @@ pub use xai_webuild_tools_api::slash_commands::{
 /// free / X Basic user calls `image_gen` or `image_edit`. The model relays it
 /// to the user. The deliberate `/imagine` slash command shows the richer
 /// SuperWeBuild upsell modal instead; this covers the natural-language path.
-pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Image generation is not available with the current model/provider credentials. Tell the user to use a model/provider that supports image generation, or check https://github.com/AgenticEconomics/webuild#readme. Do not retry this tool.";
+pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Image generation is not available with the current model/provider credentials. Tell the user to use a model/provider that supports image generation, or check https://git.jarvikheart.cn/jerryzhang/webuild#readme. Do not retry this tool.";
 
 /// HTTP client for xAI Imagine API. Cloned per-request; shares `Arc` state.
 #[derive(Clone)]

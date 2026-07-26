@@ -2,13 +2,13 @@
 
 Terminal AI coding agent (independent fork). Default model: **qwen3.7-max**.
 
-**[Repository](https://github.com/AgenticEconomics/webuild)** · **[Releases](https://github.com/AgenticEconomics/webuild/releases)**
+**[Repository](https://git.jarvikheart.cn/jerryzhang/webuild)** · **[Releases](https://git.jarvikheart.cn/jerryzhang/webuild/-/releases)**
 
 ## Install
 
 ```bash
 # Recommended: prebuilt binary (Linux / macOS Apple Silicon)
-curl -fsSL https://raw.githubusercontent.com/AgenticEconomics/webuild/main/scripts/install.sh | bash
+curl -fsSL https://git.jarvikheart.cn/jerryzhang/webuild/-/raw/main/scripts/install.sh | bash
 export PATH="$HOME/.webuild/bin:$PATH"
 ```
 
@@ -44,8 +44,8 @@ webuild update   # when configured for GitHub Releases / npm
 | macOS | Apple Silicon (arm64) |
 | Linux | x86_64, arm64 |
 
-macOS Intel: build from source. See the [repository README](https://github.com/AgenticEconomics/webuild#readme).
+macOS Intel: build from source. See the [repository README](https://git.jarvikheart.cn/jerryzhang/webuild#readme).
 
 ## Documentation
 
-In the TUI: `/howto` or `/docs`. Online: [GitHub README](https://github.com/AgenticEconomics/webuild#readme).
+In the TUI: `/howto` or `/docs`. Online: [GitLab README](https://git.jarvikheart.cn/jerryzhang/webuild#readme).

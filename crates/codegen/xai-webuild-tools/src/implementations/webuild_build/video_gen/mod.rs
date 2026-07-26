@@ -697,7 +697,7 @@ impl VideoGenConfig {
 /// free / X Basic user calls a video tool. The model relays it to the user;
 /// the deliberate `/imagine-video` slash command shows the SuperWeBuild upsell
 /// modal instead.
-pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Video generation is not available with the current model/provider credentials. Tell the user to use a model/provider that supports video generation, or check https://github.com/AgenticEconomics/webuild#readme. Do not retry this tool.";
+pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Video generation is not available with the current model/provider credentials. Tell the user to use a model/provider that supports video generation, or check https://git.jarvikheart.cn/jerryzhang/webuild#readme. Do not retry this tool.";
 
 fn default_resolution_name() -> String {
     DEFAULT_RESOLUTION.to_owned()
