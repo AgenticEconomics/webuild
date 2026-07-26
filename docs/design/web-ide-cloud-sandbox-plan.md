@@ -139,7 +139,7 @@ Workspace 以 ToolServer 身份注册到 Hub，暴露全部工具给远程调用
 ```
                      ┌──────────────────────────────────────────────────────┐
                      │  独立 ECS 实例 (ecs.c7.xlarge / 4C8G)                │
-                     │  webuild.jarvikheart.cn                              │
+                     │  webuild.agentics-economics.org                              │
                      │                                                      │
 ┌──────────┐         │  ┌────────────────────────────────────────────┐     │
 │          │ HTTPS   │  │  Nginx (反向代理 + TLS)                     │     │
@@ -639,7 +639,7 @@ Broker 复用现有 Hub SDK 的 JSON-RPC 2.0 协议，无需修改客户端代�
 │  Token 结构:                                         │
 │  {                                                   │
 │    "sub": "user_id",                                 │
-│    "iss": "webuild.jarvikheart.cn",                  │
+│    "iss": "webuild.agentics-economics.org",                  │
 │    "aud": ["webuild-relay", "webuild-hub", ...],     │
 │    "scopes": ["agent.use", "sandbox.create", ...],   │
 │    "exp": 1234567890                                 │
@@ -685,22 +685,22 @@ class Permission(str, Enum):
 
 pub fn auth_service_url(&self) -> String {
     env_var("WEBUILD_AUTH_SERVICE_URL")
-        .unwrap_or("https://webuild.jarvikheart.cn/api/auth".to_string())
+        .unwrap_or("https://webuild.agentics-economics.org/api/auth".to_string())
 }
 
 pub fn relay_ws_url(&self) -> String {
     env_var("WEBUILD_RELAY_WS_URL")
-        .unwrap_or("wss://webuild.jarvikheart.cn/ws/relay".to_string())
+        .unwrap_or("wss://webuild.agentics-economics.org/ws/relay".to_string())
 }
 
 pub fn hub_ws_url(&self) -> String {
     env_var("WEBUILD_HUB_WS_URL")
-        .unwrap_or("wss://webuild.jarvikheart.cn/ws/hub".to_string())
+        .unwrap_or("wss://webuild.agentics-economics.org/ws/hub".to_string())
 }
 
 pub fn gateway_ws_url(&self) -> String {
     env_var("WEBUILD_GATEWAY_WS_URL")
-        .unwrap_or("wss://webuild.jarvikheart.cn/ws/gateway".to_string())
+        .unwrap_or("wss://webuild.agentics-economics.org/ws/gateway".to_string())
 }
 ```
 
@@ -908,7 +908,7 @@ services:
   web-ide:
     image: registry.cn-hangzhou.aliyuncs.com/webuild/web-ide:latest
     environment:
-      - NEXT_PUBLIC_API_BASE_URL=https://webuild.jarvikheart.cn
+      - NEXT_PUBLIC_API_BASE_URL=https://webuild.agentics-economics.org
     expose:
       - "3000"
     restart: unless-stopped
@@ -960,10 +960,10 @@ upstream web_ide       { server web-ide:3000; }
 
 server {
     listen 443 ssl http2;
-    server_name webuild.jarvikheart.cn;
+    server_name webuild.agentics-economics.org;
 
-    ssl_certificate     /etc/letsencrypt/live/webuild.jarvikheart.cn/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/webuild.jarvikheart.cn/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/webuild.agentics-economics.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/webuild.agentics-economics.org/privkey.pem;
 
     # Web IDE (Next.js)
     location / {
@@ -1030,7 +1030,7 @@ server {
 # HTTP → HTTPS redirect
 server {
     listen 80;
-    server_name webuild.jarvikheart.cn;
+    server_name webuild.agentics-economics.org;
     location /.well-known/acme-challenge/ { root /var/www/certbot; }
     location / { return 301 https://$host$request_uri; }
 }
@@ -1091,7 +1091,7 @@ sandbox-pod:
 | **数据库** | PostgreSQL 16 (Docker 容器) | 用户、会话元数据、审计日志 | ECS 实例内 (数据盘 /data) |
 | **TLS** | Let's Encrypt + certbot | 自动证书管理 | ECS 实例内 (Docker 容器) |
 | **容器镜像** | 阿里云 ACR | 服务镜像 + 沙箱镜像 | 已有 ACR 实例 |
-| **域名** | `webuild.jarvikheart.cn` | 单域名 + 路径路由 | DNS A 记录指向 ECS |
+| **域名** | `webuild.agentics-economics.org` | 单域名 + 路径路由 | DNS A 记录指向 ECS |
 | **日志** | 阿里云 SLS (可选) | 集中日志 | 集群外 |
 
 > **初期不引入的组件** (延后到用户量增长时):
@@ -1105,7 +1105,7 @@ sandbox-pod:
 > **单域名策略**: 所有服务通过一个域名暴露，Nginx 按路径分发。前端只连一个域名，消除 CORS 问题，简化证书管理。
 
 ```
-webuild.jarvikheart.cn
+webuild.agentics-economics.org
 ├── /                       → Web IDE (Next.js, :3000)
 ├── /api/auth/*             → Auth Service (:8001)
 ├── /api/gateway/*          → Gateway (:8004)
@@ -1117,7 +1117,7 @@ webuild.jarvikheart.cn
 
 DNS 配置:
 ```
-webuild.jarvikheart.cn    A    <ECS 公网 IP>
+webuild.agentics-economics.org    A    <ECS 公网 IP>
 ```
 
 ### 8.4 CI/CD 流水线扩展现有 `.gitlab-ci.yml`
@@ -1180,7 +1180,7 @@ deploy-ecs:
 | ECS 环境搭建 | Docker + Docker Compose + Nginx |
 | 数据盘挂载 | `/data` (ESSD 50GB) 用于 PostgreSQL 数据持久化 |
 | ACR 镜像仓库创建 | `registry.cn-hangzhou.aliyuncs.com/webuild/*` |
-| 域名 + DNS | `webuild.jarvikheart.cn` A 记录指向 ECS 公网 IP |
+| 域名 + DNS | `webuild.agentics-economics.org` A 记录指向 ECS 公网 IP |
 | TLS 证书 | Let's Encrypt + certbot 自动续签 |
 | `docker-compose.yml` + Nginx 配置 | 项目仓库 `deploy/` 目录 |
 
@@ -1289,7 +1289,7 @@ Week  1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16
 
 | 文件/Crate | 修改内容 | 工作量 |
 |-----------|---------|--------|
-| `xai-webuild-env` | 恢复 Staging 变体，端点改为 `webuild.jarvikheart.cn` 路径路由，支持 `WEBUILD_*` 环境变量覆盖 | 中 |
+| `xai-webuild-env` | 恢复 Staging 变体，端点改为 `webuild.agentics-economics.org` 路径路由，支持 `WEBUILD_*` 环境变量覆盖 | 中 |
 | `xai-webuild-auth` | 新增 WeBuild Auth Service 适配器（JWT 验证） | 中 |
 | `xai-webuild-shell/src/agent/relay.rs` | 适配自建 Relay Server 的握手协议 | 小 |
 | `xai-webuild-shell/src/agent/app.rs` | 更新 relay 启动条件（移除 xAI auth 限制） | 小 |

@@ -1,0 +1,36 @@
+[project]
+name = "webuild-auth"
+version = "0.1.0"
+description = "WeBuild Auth Service — JWT authentication, API key management, and RBAC"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "sqlalchemy[asyncio]>=2.0,<3",
+    "asyncpg>=0.29,<1",
+    "alembic>=1.13,<2",
+    "bcrypt>=4.2,<5",
+    "pydantic[email]>=2.9,<3",
+    "httpx>=0.27,<1",
+    "structlog>=24.4,<25",
+    "webuild-shared",
+    "PyJWT>=2.9,<3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0,<9",
+    "pytest-asyncio>=0.24,<1",
+    "httpx>=0.27,<1",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

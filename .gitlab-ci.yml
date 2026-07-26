@@ -9,7 +9,9 @@
 
 stages:
   - build
+  - build-images
   - publish
+  - deploy
 
 variables:
   CARGO_TERM_COLOR: always
@@ -169,5 +171,60 @@ publish:
       echo ""
       echo "Release $TAG published successfully!"
       echo "${GITLAB_HOST}/${CI_PROJECT_PATH}/-/releases/${TAG}"
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+
+# ── Build Docker images for Phase II services ─────────────────────────────────
+build-images:
+  stage: build-images
+  tags:
+    - linux
+  variables:
+    ACR_REGISTRY: "registry.cn-hangzhou.aliyuncs.com/webuild"
+  script:
+    - echo "$ACR_PASSWORD" | docker login $ACR_REGISTRY --username "$ACR_USERNAME" --password-stdin
+    - |
+      for svc in auth relay hub gateway; do
+        echo "Building $svc..."
+        docker build -t "$ACR_REGISTRY/${svc}-service:$CI_COMMIT_SHA" \
+          -t "$ACR_REGISTRY/${svc}-service:latest" \
+          "services/$svc/"
+        docker push "$ACR_REGISTRY/${svc}-service:$CI_COMMIT_SHA"
+        docker push "$ACR_REGISTRY/${svc}-service:latest"
+      done
+    - |
+      echo "Building web-ide..."
+      docker build -t "$ACR_REGISTRY/web-ide:$CI_COMMIT_SHA" \
+        -t "$ACR_REGISTRY/web-ide:latest" \
+        services/web-ide/
+      docker push "$ACR_REGISTRY/web-ide:$CI_COMMIT_SHA"
+      docker push "$ACR_REGISTRY/web-ide:latest"
+    - |
+      echo "Building sandbox..."
+      cp dist/webuild-linux-x86_64 sandbox/webuild-linux-x86_64 2>/dev/null || true
+      docker build -t "$ACR_REGISTRY/sandbox:$CI_COMMIT_SHA" \
+        -t "$ACR_REGISTRY/sandbox:latest" \
+        sandbox/
+      docker push "$ACR_REGISTRY/sandbox:$CI_COMMIT_SHA"
+      docker push "$ACR_REGISTRY/sandbox:latest"
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "web"
+
+# ── Deploy to ECS via SSH ─────────────────────────────────────────────────────
+deploy-ecs:
+  stage: deploy
+  when: manual
+  environment: production
+  tags:
+    - linux
+  script:
+    - |
+      ssh -o StrictHostKeyChecking=no "$ECS_USER@$ECS_IP" "
+        cd /opt/webuild/deploy &&
+        docker compose pull &&
+        docker compose up -d --remove-orphans &&
+        docker image prune -f
+      "
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/

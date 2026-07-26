@@ -1,0 +1,16 @@
+[project]
+name = "webuild-shared"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "pyjwt[crypto]>=2.8",
+    "sqlalchemy[asyncio]>=2.0",
+    "alembic>=1.13",
+    "asyncpg>=0.29",
+    "httpx>=0.27",
+    "structlog>=24.1",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

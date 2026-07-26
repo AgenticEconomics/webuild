@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  nginx:
+    profiles: ["production"]
+
+  certbot:
+    profiles: ["production"]
+
+  auth-service:
+    build: ../services/auth
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://webuild:devpass@postgres:5432/webuild
+      - JWT_SECRET=dev-secret-key-not-for-production
+
+  relay-server:
+    build: ../services/relay
+    ports:
+      - "8002:8002"
+
+  hub-broker:
+    build: ../services/hub
+    ports:
+      - "8003:8003"
+
+  gateway:
+    build: ../services/gateway
+    ports:
+      - "8004:8004"
+    profiles: ["sandbox"]
+
+  web-ide:
+    build: ../services/web-ide
+    ports:
+      - "3000:3000"
+
+  postgres:
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=devpass

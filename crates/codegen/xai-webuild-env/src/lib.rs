@@ -19,20 +19,15 @@ pub struct WeBuildEndpoints {
     pub gateway_ws_url: &'static str,
     pub ws_origin: &'static str,
 }
-const PRODUCTION_ENDPOINTS: WeBuildEndpoints = WeBuildEndpoints {
+const WEBUILD_ENDPOINTS: WeBuildEndpoints = WeBuildEndpoints {
     cli_chat_proxy_base_url: "https://webuild.agentics-economics.org/api/auth",
     asset_server_url: "https://webuild.agentics-economics.org",
     relay_ws_url: "wss://webuild.agentics-economics.org/ws/relay",
     gateway_ws_url: "wss://webuild.agentics-economics.org/ws/gateway",
     ws_origin: "https://webuild.agentics-economics.org",
 };
-const STAGING_ENDPOINTS: WeBuildEndpoints = WeBuildEndpoints {
-    cli_chat_proxy_base_url: "https://webuild.agentics-economics.org/api/auth",
-    asset_server_url: "https://webuild.agentics-economics.org",
-    relay_ws_url: "wss://webuild.agentics-economics.org/ws/relay",
-    gateway_ws_url: "wss://webuild.agentics-economics.org/ws/gateway",
-    ws_origin: "https://webuild.agentics-economics.org",
-};
+const PRODUCTION_ENDPOINTS: WeBuildEndpoints = WEBUILD_ENDPOINTS;
+const STAGING_ENDPOINTS: WeBuildEndpoints = WEBUILD_ENDPOINTS;
 pub const PROD_CLI_CHAT_PROXY_BASE_URL: &str = PRODUCTION_ENDPOINTS.cli_chat_proxy_base_url;
 pub const PROD_ASSET_SERVER_URL: &str = PRODUCTION_ENDPOINTS.asset_server_url;
 pub const PROD_RELAY_WS_URL: &str = PRODUCTION_ENDPOINTS.relay_ws_url;

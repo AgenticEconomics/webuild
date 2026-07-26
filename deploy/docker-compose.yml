@@ -1,0 +1,123 @@
+version: "3.9"
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - auth-service
+      - relay-server
+      - hub-broker
+      - gateway
+      - web-ide
+    restart: unless-stopped
+
+  auth-service:
+    build: ../services/auth
+    image: registry.cn-hangzhou.aliyuncs.com/webuild/auth-service:latest
+    environment:
+      - DATABASE_URL=postgresql://webuild:${DB_PASSWORD}@postgres:5432/webuild
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      - JWT_REFRESH_TOKEN_EXPIRE_DAYS=${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
+    expose:
+      - "8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  relay-server:
+    build: ../services/relay
+    image: registry.cn-hangzhou.aliyuncs.com/webuild/relay-server:latest
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:8001
+      - DATABASE_URL=postgresql://webuild:${DB_PASSWORD}@postgres:5432/webuild
+    expose:
+      - "8002"
+    depends_on:
+      - auth-service
+      - postgres
+    restart: unless-stopped
+
+  hub-broker:
+    build: ../services/hub
+    image: registry.cn-hangzhou.aliyuncs.com/webuild/hub-broker:latest
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:8001
+    expose:
+      - "8003"
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  gateway:
+    build: ../services/gateway
+    image: registry.cn-hangzhou.aliyuncs.com/webuild/gateway:latest
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:8001
+      - DATABASE_URL=postgresql://webuild:${DB_PASSWORD}@postgres:5432/webuild
+      - KUBECONFIG=/run/secrets/sandbox-kubeconfig
+      - SANDBOX_CLUSTER_API=${SANDBOX_CLUSTER_API:-}
+    expose:
+      - "8004"
+    secrets:
+      - sandbox-kubeconfig
+    depends_on:
+      - auth-service
+      - postgres
+    restart: unless-stopped
+    profiles: ["sandbox"]
+
+  web-ide:
+    build: ../services/web-ide
+    image: registry.cn-hangzhou.aliyuncs.com/webuild/web-ide:latest
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=
+    expose:
+      - "3000"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=webuild
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=webuild
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U webuild"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+volumes:
+  pgdata:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/postgres
+
+secrets:
+  sandbox-kubeconfig:
+    file: ./secrets/sandbox-kubeconfig.yaml
