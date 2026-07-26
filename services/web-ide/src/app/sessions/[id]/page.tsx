@@ -17,15 +17,19 @@ export default function SessionPage({
   useEffect(() => {
     if (!isConnected) {
       const wsUrl =
-        process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8002/ws";
+        localStorage.getItem("webuild_ws_url") ||
+        process.env.NEXT_PUBLIC_WS_URL ||
+        `ws://${window.location.host}/ws/relay`;
       const token = localStorage.getItem("webuild_token") || "";
-      connect(wsUrl, token).catch(console.error);
+      connect(wsUrl, token).catch((e) => {
+        console.error("WebSocket connection failed:", e);
+      });
     }
   }, [isConnected, connect]);
 
   useEffect(() => {
     if (params.id && params.id !== activeSessionId) {
-      // TODO: load existing session
+      useSessionStore.setState({ activeSessionId: params.id });
     }
   }, [params.id, activeSessionId]);
 

@@ -3,19 +3,14 @@
 import { useRouter } from 'next/navigation'
 import { Plus, Terminal, Code2 } from 'lucide-react'
 import { useSessionStore } from '@/stores/session-store'
-import { useEffect } from 'react'
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { sessions, activeSessionId, createSession, isConnected } = useSessionStore()
+  const { sessions, activeSessionId, isConnected } = useSessionStore()
 
-  const handleNewSession = async () => {
-    try {
-      const sessionId = await createSession('/workspace')
-      router.push(`/sessions/${sessionId}`)
-    } catch (e) {
-      console.error('Failed to create session:', e)
-    }
+  const handleNewSession = () => {
+    const sessionId = crypto.randomUUID()
+    router.push(`/sessions/${sessionId}`)
   }
 
   return (
