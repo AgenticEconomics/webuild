@@ -38,7 +38,9 @@ services:
     profiles: ["sandbox"]
 
   web-ide:
-    profiles: ["frontend"]  # Skip until built
+    image: webuild-web-ide:local
+    ports:
+      - "3000:3000"
 
   postgres:
     ports:
