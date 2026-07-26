@@ -40,7 +40,7 @@ export function ToolCallCard({ toolCall }: { toolCall: ToolCall }) {
             <div className="text-zinc-500 mb-1">Kind: {toolCall.kind}</div>
             <div className="text-zinc-500 mb-1">ID: {toolCall.toolCallId}</div>
           </div>
-          {toolCall.rawInput && (
+          {toolCall.rawInput != null && (
             <div>
               <div className="text-zinc-400 mb-1">Input:</div>
               <pre className="bg-zinc-800 rounded p-2 overflow-x-auto text-zinc-300">
@@ -50,7 +50,7 @@ export function ToolCallCard({ toolCall }: { toolCall: ToolCall }) {
               </pre>
             </div>
           )}
-          {toolCall.rawOutput && (
+          {toolCall.rawOutput != null && (
             <div>
               <div className="text-zinc-400 mb-1">Output:</div>
               <pre className="bg-zinc-800 rounded p-2 overflow-x-auto text-zinc-300 max-h-48 overflow-y-auto">

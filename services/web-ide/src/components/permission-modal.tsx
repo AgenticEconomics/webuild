@@ -36,14 +36,14 @@ export function PermissionModal({ request, onApprove, onReject }: Props) {
         <div className="px-6 py-4">
           <div className="bg-zinc-900 rounded-lg p-3 mb-4">
             <div className="text-sm font-mono text-zinc-300">
-              {request.toolCall?.title || "Unknown operation"}
+              {String(request.toolCall?.title || "Unknown operation")}
             </div>
-            {request.toolCall?.kind && (
+            {request.toolCall?.kind != null && (
               <div className="text-xs text-zinc-500 mt-1">
-                Type: {request.toolCall.kind}
+                Type: {String(request.toolCall.kind)}
               </div>
             )}
-            {request.toolCall?.rawInput && (
+            {request.toolCall?.rawInput != null && (
               <pre className="text-xs text-zinc-400 mt-2 overflow-x-auto max-h-32">
                 {typeof request.toolCall.rawInput === "string"
                   ? request.toolCall.rawInput
