@@ -139,13 +139,13 @@ fi
 case "$download_url" in
   *.tar.gz|*.tgz)
     tar -xzf "$archive" -C "$tmpdir"
-    # Find first executable named webuild or xai-webuild-pager
+    # Find first executable named webuild, webuild-*, or xai-webuild-pager
     if [ -f "$tmpdir/webuild" ]; then
       :
     elif [ -f "$tmpdir/xai-webuild-pager" ]; then
       mv "$tmpdir/xai-webuild-pager" "$tmpdir/webuild"
     else
-      found=$(find "$tmpdir" -type f \( -name webuild -o -name xai-webuild-pager \) | head -1)
+      found=$(find "$tmpdir" -type f \( -name 'webuild-*' -o -name webuild -o -name xai-webuild-pager \) | head -1)
       if [ -n "$found" ]; then
         mv "$found" "$tmpdir/webuild"
       else
