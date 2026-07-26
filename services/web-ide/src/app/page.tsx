@@ -1,95 +1,87 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Plus, Terminal, Code2 } from 'lucide-react'
-import { useSessionStore } from '@/stores/session-store'
+import { Code2, Sparkles, Zap, Terminal, Globe } from 'lucide-react'
+import { Sidebar } from '@/components/sidebar'
+
+const SUGGESTIONS = [
+  { icon: Zap, text: 'Help me debug this Rust async code', color: 'text-amber-400' },
+  { icon: Terminal, text: 'Set up a Docker Compose for my project', color: 'text-emerald-400' },
+  { icon: Globe, text: 'Create a REST API with FastAPI', color: 'text-sky-400' },
+  { icon: Sparkles, text: 'Refactor this function for readability', color: 'text-purple-400' },
+]
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { sessions, activeSessionId, isConnected } = useSessionStore()
 
-  const handleNewSession = () => {
+  const startSession = (prompt?: string) => {
     const sessionId = crypto.randomUUID()
+    if (prompt) {
+      sessionStorage.setItem(`initial_prompt_${sessionId}`, prompt)
+    }
     router.push(`/sessions/${sessionId}`)
   }
 
   return (
-    <div className="flex h-screen bg-zinc-900 text-zinc-100">
-      {/* Main content */}
-      <main className="flex-1 flex flex-col items-center justify-center p-8">
-        <div className="max-w-2xl w-full space-y-8">
-          <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold text-zinc-100 flex items-center justify-center gap-3">
-              <Code2 className="w-8 h-8 text-blue-400" />
-              WeBuild Web IDE
-            </h2>
-            <p className="text-zinc-400">
-              AI-powered programming assistant for your development workflow
-            </p>
-            {isConnected && (
-              <span className="inline-flex items-center gap-1 text-xs text-green-400">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
-                Connected
-              </span>
-            )}
+    <div className="flex h-screen">
+      <Sidebar />
+
+      <main className="flex-1 flex flex-col items-center justify-center px-8 overflow-y-auto">
+        {/* Hero */}
+        <div className="animate-fade-in text-center max-w-xl mb-10">
+          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl shadow-indigo-500/20">
+            <Code2 className="w-8 h-8 text-white" />
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button
-              onClick={handleNewSession}
-              className="flex items-center gap-3 p-6 bg-zinc-800 hover:bg-zinc-700 rounded-lg border border-zinc-700 transition-colors"
-            >
-              <Plus className="w-8 h-8 text-blue-400" />
-              <div className="text-left">
-                <h3 className="text-lg font-semibold text-zinc-100">New Session</h3>
-                <p className="text-sm text-zinc-400">
-                  Start a new AI programming session
-                </p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => router.push('/settings')}
-              className="flex items-center gap-3 p-6 bg-zinc-800 hover:bg-zinc-700 rounded-lg border border-zinc-700 transition-colors"
-            >
-              <Terminal className="w-8 h-8 text-green-400" />
-              <div className="text-left">
-                <h3 className="text-lg font-semibold text-zinc-100">Settings</h3>
-                <p className="text-sm text-zinc-400">
-                  Configure API keys and preferences
-                </p>
-              </div>
-            </button>
-          </div>
-
-          {sessions.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-zinc-400 uppercase">
-                Recent Sessions
-              </h3>
-              <div className="space-y-1">
-                {sessions.slice(0, 5).map((session) => (
-                  <button
-                    key={session.sessionId}
-                    onClick={() => router.push(`/sessions/${session.sessionId}`)}
-                    className={`w-full text-left p-3 rounded border transition-colors ${
-                      session.sessionId === activeSessionId
-                        ? 'bg-zinc-700 border-blue-500'
-                        : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700'
-                    }`}
-                  >
-                    <div className="font-medium text-zinc-100">
-                      {session.title || session.sessionId.slice(0, 16)}
-                    </div>
-                    <div className="text-xs text-zinc-400">
-                      {session.status}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <h2 className="text-3xl font-bold text-white mb-3">
+            How can I help you <span className="text-gradient">code today</span>?
+          </h2>
+          <p className="text-gray-400 text-sm">
+            Your AI programming assistant — write, debug, refactor, and deploy code with natural language.
+          </p>
         </div>
+
+        {/* Quick Start Input */}
+        <div className="w-full max-w-2xl mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <div className="glass rounded-2xl p-1.5 shadow-xl shadow-black/20">
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                placeholder="Describe what you want to build..."
+                className="flex-1 bg-transparent px-4 py-3.5 text-sm text-white placeholder-gray-500 focus:outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                    startSession(e.currentTarget.value.trim())
+                  }
+                }}
+              />
+              <button
+                onClick={() => startSession()}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-xl transition-all hover:shadow-lg hover:shadow-indigo-500/25 active:scale-[0.97]"
+              >
+                Start
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Suggestion Cards */}
+        <div className="grid grid-cols-2 gap-3 w-full max-w-2xl animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          {SUGGESTIONS.map(({ icon: Icon, text, color }) => (
+            <button
+              key={text}
+              onClick={() => startSession(text)}
+              className="group flex items-center gap-3 p-4 rounded-xl bg-[#16213e]/60 hover:bg-[#1e1e3a] border border-[#2a2a4a] hover:border-indigo-500/30 transition-all text-left active:scale-[0.98]"
+            >
+              <Icon className={`w-5 h-5 ${color} flex-shrink-0 opacity-70 group-hover:opacity-100 transition-opacity`} />
+              <span className="text-sm text-gray-300 group-hover:text-white transition-colors">{text}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Footer hint */}
+        <p className="mt-10 text-[11px] text-gray-600 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          Press <kbd className="px-1.5 py-0.5 rounded bg-[#1e1e3a] text-gray-400 text-[10px]">Enter</kbd> to start a session
+        </p>
       </main>
     </div>
   )
