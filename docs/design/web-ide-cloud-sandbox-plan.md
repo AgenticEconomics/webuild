@@ -5,9 +5,9 @@
 
 # WeBuild Web IDE & 云端沙箱 — 实施方案
 
-> 版本: v0.2.0-draft · 日期: 2026-07-26 · 作者: Jerry Zhang
+> 版本: v0.3.0-draft · 日期: 2026-07-26 · 作者: Jerry Zhang
 >
-> 状态: **评审修订** — v0.1 评审后调整：基础设施从生产 ACK 集群迁移至独立 ECS + Docker Compose，沙箱使用独立 ACK 集群。
+> 状态: **评审修订** — v0.1 评审后调整：基础设施从生产 ACK 集群迁移至独立 ECS + Docker Compose，沙箱使用阿里云 ACS Serverless (ECI)。
 
 ---
 
@@ -116,7 +116,7 @@ Workspace 以 ToolServer 身份注册到 Hub，暴露全部工具给远程调用
 | **WeBuild Web IDE** | 浏览器前端，替代 `grok.com/code` | TypeScript (Next.js) | ECS (Docker Compose) |
 | **WeBuild Gateway** | 沙箱生命周期管理，替代 `grok.com/ws/gw/` | Python (FastAPI) + WebSocket | ECS (Docker Compose) |
 | **WeBuild Auth Service** | 统一认证服务 | Python (FastAPI) + JWT/OIDC | ECS (Docker Compose) |
-| **WeBuild Cloud Sandbox** | 隔离的执行环境，替代 xAI 云端沙箱 | Docker + K8s (独立 ACK 集群) | 独立 ACK 集群 (Phase 4) |
+| **WeBuild Cloud Sandbox** | 隔离的执行环境，替代 xAI 云端沙箱 | Docker + ACS Serverless (ECI) | 阿里云 ACS 集群 (Phase 4) |
 | **Nginx 反向代理** | 单域名路径路由 + TLS 终结 | Nginx + Let's Encrypt | ECS (Docker Compose) |
 | **PostgreSQL** | 用户、会话、审计数据存储 | PostgreSQL (Docker 容器) | ECS (Docker Compose) |
 
@@ -134,7 +134,7 @@ Workspace 以 ToolServer 身份注册到 Hub，暴露全部工具给远程调用
 
 ### 3.1 总体架构
 
-> **基础设施策略**: 核心服务部署在**独立 ECS 实例**上（Docker Compose 编排），与生产 ACK 集群物理隔离，避免干扰线上业务。沙箱执行环境在 Phase 4 使用**独立 ACK 集群**，与核心服务通过 K8s API 远程通信。
+> **基础设施策略**: 核心服务部署在**独立 ECS 实例**上（Docker Compose 编排），与生产 ACK 集群物理隔离，避免干扰线上业务。沙箱执行环境在 Phase 4 使用**阿里云 ACS Serverless 集群** (ECI 弹性实例)，与核心服务通过 K8s API 远程通信。
 
 ```
                      ┌──────────────────────────────────────────────────────┐
@@ -166,20 +166,23 @@ Workspace 以 ToolServer 身份注册到 Hub，暴露全部工具给远程调用
                                                            │ K8s API (远程)
                                                            ▼
                      ┌──────────────────────────────────────────────────────┐
-                     │  独立 ACK 集群 (沙箱专用, Phase 4)                    │
+                     │  阿里云 ACS Serverless (沙箱专用, Phase 4)            │
+                     │  Cluster: webuild-sandbox-aliyun_2608                │
+                     │  c3f5b659659ed469d9517019a4bab4785                   │
                      │                                                      │
                      │  ┌────────────────────────────────────────────────┐  │
-                     │  │  Sandbox Pod 1                                 │  │
+                     │  │  Sandbox Pod 1 (ECI 弹性实例)                   │  │
                      │  │  ├─ webuild agent (headless)                   │  │
                      │  │  ├─ 隔离文件系统 (/workspace)                   │  │
                      │  │  └─ 资源限制 (1C/2Gi req, 2C/4Gi lim)          │  │
                      │  └────────────────────────────────────────────────┘  │
                      │  ┌────────────────────────────────────────────────┐  │
-                     │  │  Sandbox Pod N  ... (按需创建/销毁, 弹性扩缩)   │  │
+                     │  │  Sandbox Pod N  ... (按需创建/销毁, 秒级弹性)   │  │
                      │  └────────────────────────────────────────────────┘  │
                      │                                                      │
                      │  NetworkPolicy: 仅允许出站 DashScope + Hub Broker    │
-                     │  Spot Instance 节点池: 0~10 节点, Cluster Autoscaler│
+                     │  Virtual Kubelet: cn-hangzhou-b/j/k (3 AZ)          │
+                     │  无固定节点, 零运维, 按 Pod 资源用量计费              │
                      └──────────────────────────────────────────────────────┘
 ```
 
@@ -208,7 +211,7 @@ SessionActor → Sampler → Qwen3.7-max (DashScope)
 
 #### 场景 B：云端沙箱 Agent (Phase 4)
 
-> Gateway 运行在 ECS 上，通过 K8s API 远程管理独立 ACK 集群中的沙箱 Pod。
+> Gateway 运行在 ECS 上，通过 K8s API 远程管理 ACS Serverless 集群中的沙箱 Pod。
 
 ```
 浏览器 (Web IDE)
@@ -217,9 +220,9 @@ SessionActor → Sampler → Qwen3.7-max (DashScope)
   ▼
 Gateway (ECS, Docker Compose)
   │ ACP over WebSocket (代理到沙箱 Pod)
-  │ K8s API → 独立 ACK 集群
+  │ K8s API → ACS Serverless 集群
   ▼
-沙箱 Pod 内的 webuild agent (headless)  ← 运行在独立 ACK 集群
+沙箱 Pod 内的 webuild agent (headless)  ← 运行在 ACS (ECI 弹性实例)
   │
   ├─ 需要操作本地代码？
   │    │ JSON-RPC over WebSocket
@@ -390,13 +393,13 @@ GET    /api/health                      # 健康检查
 
 ### 5.1 沙箱架构
 
-> **部署隔离**: 沙箱 Pod 运行在**独立 ACK 集群**中，与生产 ACK 集群和核心服务 ECS 完全隔离。Gateway（ECS 上）通过 K8s API 远程管理沙箱集群。
+> **部署隔离**: 沙箱 Pod 运行在**阿里云 ACS Serverless 集群**中，每个 Pod 是独立的 ECI (Elastic Container Instance)，与生产 ACK 集群和核心服务 ECS 完全隔离。Gateway（ECS 上）通过 K8s API 远程管理沙箱集群。
 
-每个沙箱是一个 Kubernetes Pod，内含：
+每个沙箱是一个 Kubernetes Pod (ECI 弹性实例)，内含：
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Sandbox Pod (独立 ACK 集群)                     │
+│  Sandbox Pod (ACS Serverless / ECI)              │
 │                                                 │
 │  ┌─────────────────────────────────────────────┐ │
 │  │  webuild agent (headless mode)              │ │
@@ -424,7 +427,7 @@ GET    /api/health                      # 健康检查
 │  - Memory: 2Gi (request) / 4Gi (limit)          │
 │  - Ephemeral Storage: 10Gi                      │
 │  - Network: 仅允许出站到 DashScope + Hub Broker  │
-│  - 调度: 沙箱专用节点池 (Spot Instance)          │
+│  - 调度: Virtual Kubelet (ECI, 3 AZ)            │
 │  - TTL: 最长 4 小时                             │
 └─────────────────────────────────────────────────┘
 ```
@@ -436,8 +439,8 @@ GET    /api/health                      # 健康检查
   │
   ▼
 POST /api/gateway/sandboxes
-  │ Gateway (ECS) 通过远程 K8s API 操作独立 ACK 集群:
-  │ → K8s API 创建 Pod + Service + NetworkPolicy (远程集群)
+  │ Gateway (ECS) 通过远程 K8s API 操作 ACS Serverless 集群:
+  │ → K8s API 创建 Pod + Service + NetworkPolicy (ACS 集群)
   │ → 等待 Pod Ready
   │ → webuild agent 启动 (headless)
   │
@@ -455,7 +458,7 @@ Web IDE → Nginx (ECS) → Gateway (ECS) → 代理 WebSocket 到沙箱 Pod
   ▼
 DELETE /api/gateway/sandboxes/:id
   │ Gateway drain Agent sessions
-  │ → 远程 K8s API 删除 Pod (独立 ACK 集群)
+  │ → 远程 K8s API 删除 Pod (ACS Serverless 集群)
   │ → 清理 NetworkPolicy + Service
   │
   ▼ 可选: 导出 workspace 内容 (git diff / tar)
@@ -463,7 +466,7 @@ DELETE /api/gateway/sandboxes/:id
 
 ### 5.3 Gateway 服务设计
 
-Gateway 运行在 ECS 上，通过远程 K8s API 管理独立 ACK 集群中的沙箱 Pod。它是 `grok.com/ws/gw/` 的替代实现：
+Gateway 运行在 ECS 上，通过远程 K8s API 管理 ACS Serverless 集群中的沙箱 Pod (ECI 弹性实例)。它是 `grok.com/ws/gw/` 的替代实现：
 
 ```python
 # 核心数据模型
@@ -712,7 +715,7 @@ pub fn gateway_ws_url(&self) -> String {
 │  - 所有外部通信强制 WSS/HTTPS (Nginx TLS 终结)               │
 │  - ECS 安全组: 仅开放 80/443 端口                             │
 │  - 核心服务仅监听 127.0.0.1 (Docker 内部网络)                 │
-│  - 沙箱 ACK 集群: K8s NetworkPolicy 限制出站                  │
+│  - 沙箱 ACS 集群: K8s NetworkPolicy 限制出站                  │
 ├─ 第 2 层: 认证 ──────────────────────────────────────────────┤
 │  - JWT Token + API Key 双因子                                 │
 │  - Token 短有效期 (1h)，Refresh Token 轮换                     │
@@ -722,7 +725,7 @@ pub fn gateway_ws_url(&self) -> String {
 │  - Session 隔离: 用户只能访问自己的会话                         │
 │  - Hub 路由: (session_id, tool_id) 绑定，跨 session 不可调用   │
 ├─ 第 4 层: 沙箱隔离 ──────────────────────────────────────────┤
-│  - 独立 ACK 集群: 与生产环境物理隔离                           │
+│  - ACS Serverless: 独立集群 + ECI 实例级隔离                   │
 │  - K8s Pod 隔离: 独立 namespace, 独立 ServiceAccount          │
 │  - 资源限制: CPU/Memory/Storage/Network                       │
 │  - 文件系统: emptyDir (非持久化) 或 PVC (可选持久化)           │
@@ -735,10 +738,10 @@ pub fn gateway_ws_url(&self) -> String {
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 沙箱安全策略 (独立 ACK 集群)
+### 7.2 沙箱安全策略 (ACS Serverless / ECI)
 
 ```yaml
-# K8s SecurityContext for sandbox pods (独立 ACK 集群)
+# K8s SecurityContext for sandbox pods (ACS Serverless, ECI 弹性实例)
 securityContext:
   runAsNonRoot: true
   runAsUser: 1000
@@ -749,7 +752,7 @@ securityContext:
   capabilities:
     drop: ["ALL"]
 
-# NetworkPolicy: 仅允许必要的出站 (在独立 ACK 集群中应用)
+# NetworkPolicy: 仅允许必要的出站 (在 ACS 集群中应用)
 egress:
   - to:
       # DashScope API
@@ -805,7 +808,7 @@ egress:
 | 环境 | 部署方式 | 理由 |
 |------|---------|------|
 | **核心服务** (Auth/Relay/Hub/Gateway/Web IDE/DB) | 独立 ECS + Docker Compose | 5 个容器 + DB，K8s 过度工程；与生产集群零干扰 |
-| **沙箱执行** (Phase 4) | 独立 ACK 集群 | 需要 Pod 隔离、NetworkPolicy、弹性扩缩容 |
+| **沙箱执行** (Phase 4) | 阿里云 ACS Serverless (ECI) | Pod 级 ECI 隔离、NetworkPolicy、秒级弹性、零运维 |
 | **生产 ACK 集群** | **不触碰** | 承载 jarvildatavault、xingu 等核心业务，CPU requests 已 89% |
 
 ### 8.1 核心服务 — ECS + Docker Compose
@@ -889,7 +892,7 @@ services:
     environment:
       - AUTH_SERVICE_URL=http://auth-service:8001
       - DATABASE_URL=postgresql://webuild:${DB_PASSWORD}@postgres:5432/webuild
-      - KUBECONFIG=/run/secrets/sandbox-kubeconfig    # 远程 ACK 集群凭证
+      - KUBECONFIG=/run/secrets/sandbox-kubeconfig    # ACS Serverless 集群凭证
       - SANDBOX_CLUSTER_API=${SANDBOX_CLUSTER_API}
     expose:
       - "8004"
@@ -941,7 +944,7 @@ volumes:
 
 secrets:
   sandbox-kubeconfig:
-    file: ./secrets/sandbox-kubeconfig.yaml           # Phase 4: 独立 ACK 集群凭证
+    file: ./secrets/sandbox-kubeconfig.yaml           # Phase 4: ACS Serverless 集群凭证
 ```
 
 #### Nginx 反向代理配置
@@ -1033,30 +1036,32 @@ server {
 }
 ```
 
-### 8.1b 沙箱 — 独立 ACK 集群 (Phase 4)
+### 8.1b 沙箱 — 阿里云 ACS Serverless (Phase 4)
 
-> Phase 4 启动时新建独立 ACK 集群，专门用于沙箱执行。核心服务（ECS 上的 Gateway）通过 K8s API 远程管理。
+> 沙箱集群已创建: **webuild-sandbox-aliyun_2608** (ACS Serverless)。核心服务（ECS 上的 Gateway）通过 K8s API 远程管理。无需节点池，Pod 按需调度为 ECI 弹性实例。
 
 ```yaml
-# 沙箱 ACK 集群配置
+# 沙箱 ACS Serverless 集群 (已创建)
 cluster:
-  name: webuild-sandbox
-  type: ACK 托管版
+  name: webuild-sandbox-aliyun_2608
+  cluster_id: c3f5b659659ed469d9517019a4bab4785
+  type: ACS Serverless (ManagedKubernetes, profile: Acs)
+  spec: ack.pro.small
   region: cn-hangzhou
-  version: "1.30"
+  version: "1.36.1-aliyun.1"
+  vpc: vpc-bp1qtsayedt7wp5vy8v9p (172.16.0.0/12)
+  api_server_public: https://120.55.190.66:6443
+  api_server_private: https://172.23.56.86:6443
+  nat_gateway: ngw-bp1us9y0enfouxc4basda (SNAT 已启用)
+  deletion_protection: true
 
-# 沙箱节点池
-node_pool:
-  name: sandbox-pool
-  instance_types:
-    - ecs.c7.xlarge (4C/8G)       # 每节点 ~3 个沙箱
-    - ecs.c7.2xlarge (8C/16G)     # 每节点 ~7 个沙箱
-  spot_instance: true              # 抢占式实例，成本约为按量的 1/5
-  min_nodes: 0                     # 无沙箱时缩到 0
-  max_nodes: 10                    # 最多 10 节点
-  autoscaler: cluster-autoscaler
+# Virtual Kubelet 可用区 (Serverless Pod 调度)
+virtual_kubelet:
+  - cn-hangzhou-b
+  - cn-hangzhou-j
+  - cn-hangzhou-k
 
-# 沙箱 Pod 资源配置
+# 沙箱 Pod 资源配置 (每个 Pod = 独立 ECI 实例)
 sandbox-pod:
   resources:
     requests: { cpu: "1", memory: "2Gi" }
@@ -1065,9 +1070,18 @@ sandbox-pod:
   ttl: 4h
   namespace: webuild-sandbox
 
-# 容量估算 (ecs.c7.2xlarge):
-#   每节点 ~7 沙箱, 10 节点 = 70 并发沙箱
-#   月成本: 10 × ecs.c7.2xlarge 抢占式 ≈ ¥1500-2500/月
+# ACS Serverless 优势 (相比传统 ACK + 节点池):
+#   - 零节点运维: 无需管理节点池、Cluster Autoscaler
+#   - 秒级弹性: Pod 直接调度为 ECI，无需等待节点就绪
+#   - 实例级隔离: 每个 Pod 运行在独立 ECI 沙箱中
+#   - 零闲置成本: 无沙箱时零费用 (无节点开销)
+#   - 多 AZ 高可用: 自动跨 3 个可用区调度
+#
+# 计费模式:
+#   - 按 Pod 实际资源用量 (vCPU·秒 + 内存·秒) 计费
+#   - 估算: 1C/2Gi Pod 约 ¥0.12/小时 (按量)
+#   - 20 并发沙箱 × 4h/天 × 30 天 ≈ ¥288/月
+#   - 70 并发沙箱 (满配) ≈ ¥1008/月
 ```
 
 ### 8.2 基础设施依赖
@@ -1148,7 +1162,7 @@ deploy-ecs:
 
 当用户量增长到需要 K8s 编排时，核心服务可平滑迁移：
 
-1. 新建 ACK 集群（或在现有 ACK 集群添加独立节点池）
+1. 新建 ACK/ACS 集群（或复用沙箱 ACS 集群添加核心服务 namespace）
 2. 将 `docker-compose.yml` 转换为 Helm Chart（服务定义不变，只换编排层）
 3. Nginx 配置转换为 K8s Ingress
 4. PostgreSQL 迁移到阿里云 RDS
@@ -1210,7 +1224,7 @@ deploy-ecs:
 
 | 任务 | 产出 | 周 |
 |------|------|----|
-| **新建独立 ACK 集群** | webuild-sandbox 集群 + Spot 节点池 | 0.5 |
+| **配置 ACS Serverless 集群** | 创建 namespace + RBAC + NetworkPolicy (集群已创建) | 0.5 |
 | 沙箱容器镜像 | Dockerfile.sandbox + 基础工具 | 1 |
 | Gateway 服务 | 沙箱 CRUD + 远程 K8s API 集成 | 1-2 |
 | NetworkPolicy | 出站限制 (DashScope + ECS Hub Broker) | 2 |
@@ -1257,14 +1271,14 @@ Week  1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16
 | **Relay 握手协议逆向不准确** | 🟡 中 | 高 | Phase 2 前置 0.5 周 Spike，从 `relay.rs` 提取完整协议 spec；写 Python mock 验证 Rust 客户端连通性 |
 | **Hub Broker Python↔Rust JSON-RPC 不兼容** | 🟡 中 | 高 | Phase 3 前置 3 天 Spike，最小 Broker 与 Rust ToolServer 握手验证 |
 | **`xai-webuild-env` 多环境改造引入回归** | 🟡 中 | 中 | Phase 1 专门处理，增加环境变量覆盖的单元测试；Production 变体行为不变 |
-| 沙箱抢占式实例被回收，运行中任务中断 | 中 | 高 | 沙箱 Pod `terminationGracePeriodSeconds: 120`；Gateway 监听节点事件，自动迁移；关键任务禁用 Spot |
+| ACS ECI 实例启动延迟或配额不足 | 低 | 中 | ACS 跨 3 AZ 调度提高可用率；提前申请 ECI 配额提升；Gateway 异步创建 + 前端显示进度 |
 | ECS 单实例故障，全部服务不可用 | 低 | 高 | ECS 自动快照 + 数据盘定期备份；`docker compose` 的 `restart: unless-stopped` 自愈；未来可迁移到 ACK |
 | WebSocket 长连接在高并发下不稳定 | 中 | 高 | Nginx 已验证 WebSocket 代理能力；`proxy_read_timeout 86400s`；客户端自动重连 |
 | 沙箱 Pod 启动延迟影响用户体验 | 中 | 中 | 预热 Pod Pool（维护 N 个待命 Pod）；沙箱创建异步化，前端显示进度 |
 | Hub Broker 成为单点瓶颈 | 低 | 高 | 初期单实例够用；未来水平扩展或 Rust 重写 |
 | Rust 客户端代码修改量大 | 低 | 中 | 仅修改 `xai-webuild-env` 端点 + `xai-webuild-auth` 适配，其余 SDK 不变 |
 | DashScope API 不稳定 | 低 | 中 | 重试策略已有（sampler retry.rs 15 次退避）；可配置 fallback 模型 |
-| K8s NetworkPolicy 配置错误导致沙箱无法访问模型 API | 中 | 中 | Phase 4 在独立集群充分测试；NetworkPolicy 模板化 + Git 版本控制 |
+| K8s NetworkPolicy 配置错误导致沙箱无法访问模型 API | 中 | 中 | Phase 4 在 ACS 集群充分测试；NetworkPolicy 模板化 + Git 版本控制 |
 | PostgreSQL 容器数据丢失 | 低 | 高 | 数据盘 `/data` 独立于系统盘；定期 `pg_dump` 备份到 OSS；系统盘快照 |
 
 ---
@@ -1363,7 +1377,7 @@ webuild/
 │   │   └── conf.d/
 │   │       └── webuild.conf         # 站点配置 (路径路由 + WebSocket)
 │   └── secrets/                     # 敏感文件 (git-ignored)
-│       └── sandbox-kubeconfig.yaml  # Phase 4: 独立 ACK 集群凭证
+│       └── sandbox-kubeconfig.yaml  # Phase 4: ACS Serverless 集群凭证
 └── docs/
     └── design/
         └── web-ide-cloud-sandbox-plan.md  # 本文档
@@ -1448,15 +1462,15 @@ CREATE INDEX idx_audit_action ON audit_logs(action, timestamp);
 | 沙箱创建时间 (预热 Pod) | < 10 秒 | Pod Pool 待命 |
 | Hub Broker 工具调用延迟 | < 50ms (附加延迟) | Broker 转发开销 |
 | 并发 WebSocket 连接数 | ≥ 50 per instance | 初期 1 replica |
-| 并发沙箱数 | **≥ 20**（初期）/ ≥ 70（满配） | 受沙箱节点池规模限制 |
+| 并发沙箱数 | **≥ 20**（初期）/ ≥ 70（满配） | 受 ECI 配额限制 (可申请提升) |
 
 #### 资源预算对照
 
 | 部署阶段 | 核心服务部署 | 核心服务月成本 | 沙箱集群 | 最大并发沙箱 |
 |----------|-------------|---------------|---------|-------------|
 | Phase 0-3 (初始) | ECS (4C8G) Docker Compose | ~¥400-600 | — | — (沙箱未上线) |
-| Phase 4 (沙箱上线) | ECS (4C8G) Docker Compose | ~¥400-600 | 独立 ACK (Spot 池) | ~20 (3 个沙箱节点) |
-| Phase 5 (满配) | ECS (升配 8C16G) 或迁移 ACK | ~¥800-1200 | 独立 ACK (Spot 池扩) | ~70 (10 个沙箱节点) |
+| Phase 4 (沙箱上线) | ECS (4C8G) Docker Compose | ~¥400-600 | ACS Serverless (ECI 按量) | ~20 (≈¥288/月) |
+| Phase 5 (满配) | ECS (升配 8C16G) 或迁移 ACK | ~¥800-1200 | ACS Serverless (ECI 按量) | ~70 (≈¥1008/月) |
 
 ### E. 术语表
 
@@ -1472,5 +1486,7 @@ CREATE INDEX idx_audit_action ON audit_logs(action, timestamp);
 | **HITL** | Human-in-the-loop — 需要人工确认的操作 |
 | **Session Binding** | 将工具绑定到特定会话的路由规则 |
 | **ECS** | 阿里云弹性计算服务 (Elastic Compute Service)，本方案用于部署核心服务 |
-| **ACK** | 阿里云容器服务 Kubernetes 版，本方案中沙箱使用独立 ACK 集群 |
+| **ACK** | 阿里云容器服务 Kubernetes 版，本方案中生产集群不触碰 |
+| **ACS** | 阿里云容器计算服务 (Container Service)，Serverless K8s，本方案中沙箱使用 ACS 集群 |
+| **ECI** | 弹性容器实例 (Elastic Container Instance)，ACS Serverless 的底层运行单元 |
 | **Docker Compose** | 容器编排工具，本方案用于 ECS 上的核心服务部署 |
