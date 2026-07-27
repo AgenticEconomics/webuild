@@ -58,6 +58,11 @@ async def lifespan(app: FastAPI):
     if db_url:
         try:
             engine = get_engine(db_url)
+            # Import relay models to register their tables with Base
+            from src.persistence import RelaySession, RelayMessage  # noqa: F401
+            from webuild_shared.db import Base
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
             factory = get_session_factory(engine)
             _store = SessionStore(factory)
             logger.info("relay.persistence.enabled")
