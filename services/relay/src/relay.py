@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from typing import Any
 
 import structlog
@@ -106,7 +107,13 @@ async def websocket_endpoint(
 
     # --- Authenticate ---
     user = None
-    if token:
+
+    # Allow internal agent token for sandbox agents (bypasses JWT)
+    internal_token = os.environ.get("RELAY_INTERNAL_TOKEN", "")
+    if internal_token and token == internal_token and role == "agent":
+        user = {"user_id": "sandbox-agent", "scopes": ["agent.use"]}
+        logger.info("ws.internal_agent_auth", session_id=session_id)
+    elif token:
         user = _authenticate(token)
 
     if user is None:
@@ -169,13 +176,13 @@ async def websocket_endpoint(
 
     elif role == "agent":
         if pair is None:
-            await ws.send_text(
-                make_error_response(
-                    None, INTERNAL_ERROR, f"Session {session_id} not found"
-                )
+            # Auto-create session for agent (sandbox agents connect before browser)
+            pair = await _session_manager.create_session(
+                user_id=user_id, session_id=session_id
             )
-            await ws.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
+            if _store:
+                await _store.create_session(session_id, user_id)
+            logger.info("ws.agent_created_session", session_id=session_id)
 
         pair = await _session_manager.register_agent(session_id, ws)
         if pair is None:

@@ -1,9 +1,14 @@
-FROM ubuntu:24.04 AS base
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
+# Use Aliyun mirrors for China
+RUN sed -i 's|archive.ubuntu.com|mirrors.aliyun.com|g' /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null; \
+    sed -i 's|security.ubuntu.com|mirrors.aliyun.com|g' /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null; true
+
+# Install dev tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl wget ca-certificates \
     build-essential gcc g++ make \
@@ -14,29 +19,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for sandbox execution
-RUN groupadd -g 1000 sandbox && \
-    useradd -u 1000 -g sandbox -m -s /bin/bash sandbox
+# Use existing ubuntu user (UID 1000 in Ubuntu 24.04)
+# No need to create — already exists with UID/GID 1000
 
-# Install webuild binary (from CI artifact or local build)
-COPY webuild-linux-x86_64 /usr/local/bin/webuild
-RUN chmod +x /usr/local/bin/webuild
+# Install Python agent dependencies
+COPY requirements.txt /opt/sandbox/requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages \
+    -r /opt/sandbox/requirements.txt \
+    --index-url https://mirrors.aliyun.com/pypi/simple/ \
+    --trusted-host mirrors.aliyun.com
 
-# Copy init script
-COPY scripts/sandbox-init.sh /opt/sandbox-init.sh
-RUN chmod +x /opt/sandbox-init.sh
+# Copy sandbox agent
+COPY agent/sandbox_agent.py /opt/sandbox/sandbox_agent.py
+COPY scripts/sandbox-init.sh /opt/sandbox/sandbox-init.sh
+RUN chmod +x /opt/sandbox/sandbox-init.sh
 
 # Workspace directory
-RUN mkdir -p /workspace && chown sandbox:sandbox /workspace
+RUN mkdir -p /workspace && chown 1000:1000 /workspace
 
 WORKDIR /workspace
 
-# Health check
+# Health check: verify agent is listening on 8080
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD pgrep -f "webuild" > /dev/null || exit 1
+    CMD pgrep -f sandbox_agent > /dev/null || exit 1
 
-# Run as non-root
-USER sandbox
+# Run as non-root (ubuntu user, UID 1000)
+USER ubuntu
 
-# Entry: headless agent mode
-ENTRYPOINT ["/opt/sandbox-init.sh"]
+# Start the sandbox agent WebSocket server
+CMD ["python3", "/opt/sandbox/sandbox_agent.py"]

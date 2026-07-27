@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -31,8 +32,14 @@ ENVIRONMENT_TEMPLATES: dict[str, SandboxEnvironment] = {
     "default": SandboxEnvironment(
         id="default",
         name="WeBuild Sandbox (Default)",
-        container_image="registry.cn-hangzhou.aliyuncs.com/webuild/sandbox:latest",
-        resource_profile=ResourceProfile(),
+        container_image="registry.cn-hangzhou.aliyuncs.com/alinux/python:3.11-slim",
+        resource_profile=ResourceProfile(
+            cpu_request="500m",
+            memory_request="1Gi",
+            cpu_limit="2",
+            memory_limit="4Gi",
+            ephemeral_storage="10Gi",
+        ),
         max_ttl_seconds=3600,
     ),
 }
@@ -82,7 +89,15 @@ class SandboxManager:
                 self._k8s.create_sandbox_pod,
                 sandbox_id=sandbox_id,
                 image=env.container_image,
-                env_vars={"SANDBOX_ID": sandbox_id, "WEBUILD_USER_ID": user_id},
+                env_vars={
+                    "SANDBOX_ID": sandbox_id,
+                    "SESSION_ID": sandbox_id,
+                    "WEBUILD_USER_ID": user_id,
+                    "DASHSCOPE_API_KEY": os.environ.get("DASHSCOPE_API_KEY", ""),
+                    "MODEL": os.environ.get("MODEL", "qwen-max"),
+                    "RELAY_URL": os.environ.get("RELAY_URL", "ws://relay-server:8002/ws"),
+                    "RELAY_TOKEN": os.environ.get("RELAY_INTERNAL_TOKEN", "internal-sandbox-agent"),
+                },
                 resources=env.resource_profile.model_dump(),
                 ttl_seconds=env.max_ttl_seconds,
             )

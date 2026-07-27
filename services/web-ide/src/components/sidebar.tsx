@@ -19,17 +19,14 @@ export function Sidebar() {
     <aside className="w-[256px] h-screen flex flex-col bg-console-surface border-r border-console-border flex-shrink-0">
       {/* Product header */}
       <div className="h-14 px-4 border-b border-console-border flex items-center">
-        <Link href="/" className="flex items-center gap-2.5 group min-w-0">
+        <Link href="/" className="flex items-center min-w-0">
           <img
             src="/brand/webuild-wordmark.png"
             alt="WeBuild"
-            width={120}
-            height={30}
-            className="h-[30px] w-auto flex-shrink-0 object-contain"
+            width={128}
+            height={28}
+            className="h-7 w-auto object-contain"
           />
-          <p className="min-w-0 text-[11px] text-console-faint leading-tight truncate">
-            {t('tagline')}
-          </p>
         </Link>
       </div>
 

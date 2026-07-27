@@ -157,6 +157,27 @@ async def health_check():
     )
 
 
+@app.get("/discover", tags=["sessions"])
+async def discover_sessions():
+    """List sessions that have a browser connected but no agent.
+
+    Internal endpoint used by the agent service to find sessions to join.
+    No authentication required (internal network only).
+    """
+    assert _session_manager is not None
+    result = []
+    async with _session_manager._lock:
+        for sid, pair in _session_manager._sessions.items():
+            if pair.browser_ws is not None and pair.agent_ws is None:
+                result.append({
+                    "session_id": sid,
+                    "status": pair.status.value if hasattr(pair.status, "value") else str(pair.status),
+                    "user_id": pair.user_id,
+                    "created_at": pair.created_at.isoformat() if hasattr(pair.created_at, "isoformat") else str(pair.created_at),
+                })
+    return result
+
+
 @app.post(
     "/sessions",
     response_model=SessionResponse,

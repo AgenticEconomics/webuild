@@ -49,6 +49,47 @@ class K8sClient:
     # Pod creation
     # ------------------------------------------------------------------
 
+    # Sandbox agent code to inject as ConfigMap (when using standard image)
+    _AGENT_CODE: str | None = None
+
+    @classmethod
+    def load_agent_code(cls) -> str:
+        """Load the sandbox agent Python code for ConfigMap injection."""
+        if cls._AGENT_CODE is None:
+            import pathlib
+            agent_path = pathlib.Path(__file__).parent.parent / "sandbox" / "agent" / "sandbox_agent.py"
+            if agent_path.exists():
+                cls._AGENT_CODE = agent_path.read_text()
+                logger.info("agent_code_loaded", path=str(agent_path), size=len(cls._AGENT_CODE))
+            else:
+                cls._AGENT_CODE = ""
+                logger.warning("agent_code_not_found", path=str(agent_path))
+        return cls._AGENT_CODE
+
+    def _ensure_agent_configmap(self, sandbox_id: str) -> str:
+        """Create a ConfigMap with the agent code. Returns configmap name."""
+        cm_name = f"sandbox-agent-{sandbox_id}"
+        agent_code = self.load_agent_code()
+
+        cm = client.V1ConfigMap(
+            metadata=client.V1ObjectMeta(
+                name=cm_name,
+                namespace=SANDBOX_NAMESPACE,
+                labels={"app": "webuild-sandbox", SANDBOX_LABEL_PREFIX: sandbox_id},
+            ),
+            data={"sandbox_agent.py": agent_code},
+        )
+
+        try:
+            self.core_v1.create_namespaced_config_map(namespace=SANDBOX_NAMESPACE, body=cm)
+            logger.info("agent_configmap_created", name=cm_name)
+        except ApiException as e:
+            if e.status == 409:
+                logger.debug("agent_configmap_exists", name=cm_name)
+            else:
+                raise
+        return cm_name
+
     def create_sandbox_pod(
         self,
         sandbox_id: str,
@@ -63,13 +104,41 @@ class K8sClient:
         svc_name = f"sandbox-{sandbox_id}"
 
         res = resources or {}
-        cpu_request = res.get("cpu_request", "1")
-        memory_request = res.get("memory_request", "2Gi")
+        cpu_request = res.get("cpu_request", "500m")
+        memory_request = res.get("memory_request", "1Gi")
         cpu_limit = res.get("cpu_limit", "2")
         memory_limit = res.get("memory_limit", "4Gi")
         ephemeral_storage = res.get("ephemeral_storage", "10Gi")
 
         env_list = [client.V1EnvVar(name=k, value=v) for k, v in (env_vars or {}).items()]
+
+        # Always inject agent code via ConfigMap (custom images not yet available)
+        volumes = None
+        volume_mounts = None
+        command = None
+        args = None
+
+        cm_name = self._ensure_agent_configmap(sandbox_id)
+        volumes = [
+            client.V1Volume(
+                name="agent-code",
+                config_map=client.V1ConfigMapVolumeSource(name=cm_name),
+            ),
+        ]
+        volume_mounts = [
+            client.V1VolumeMount(
+                name="agent-code",
+                mount_path="/opt/agent",
+                read_only=True,
+            ),
+        ]
+        command = ["bash", "-c"]
+        args = [
+            "pip install --break-system-packages -q httpx websockets structlog "
+            "--index-url https://mirrors.aliyun.com/pypi/simple/ "
+            "--trusted-host mirrors.aliyun.com && "
+            "exec python3 /opt/agent/sandbox_agent.py"
+        ]
 
         # Container
         container = client.V1Container(
@@ -77,6 +146,9 @@ class K8sClient:
             image=image,
             env=env_list or None,
             ports=[client.V1ContainerPort(container_port=8080, protocol="TCP")],
+            command=command,
+            args=args,
+            volume_mounts=volume_mounts,
             resources=client.V1ResourceRequirements(
                 requests={
                     "cpu": cpu_request,
@@ -90,7 +162,7 @@ class K8sClient:
                 },
             ),
             security_context=client.V1SecurityContext(
-                run_as_user=1000,
+                run_as_user=0,  # Run as root to install pip packages, then agent drops privileges
                 capabilities=client.V1Capabilities(drop=["ALL"]),
             ),
         )
@@ -99,7 +171,7 @@ class K8sClient:
             "app": "webuild-sandbox",
             SANDBOX_LABEL_PREFIX: sandbox_id,
             "webuild.io/ttl-seconds": str(ttl_seconds),
-            "webuild.io/created-at": datetime.now(timezone.utc).isoformat(),
+            "webuild.io/created-at": str(int(datetime.now(timezone.utc).timestamp())),
         }
 
         pod_spec = client.V1Pod(
@@ -110,11 +182,8 @@ class K8sClient:
             ),
             spec=client.V1PodSpec(
                 containers=[container],
+                volumes=volumes,
                 restart_policy="Never",
-                security_context=client.V1PodSecurityContext(
-                    run_as_user=1000,
-                    run_as_non_root=True,
-                ),
                 termination_grace_period_seconds=30,
             ),
         )
