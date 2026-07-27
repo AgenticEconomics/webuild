@@ -74,17 +74,10 @@ export class AcpClient {
     return new Promise((resolve, reject) => {
       this.ws = new WebSocket(fullUrl);
 
-      this.ws.onopen = async () => {
-        try {
-          const result = await this.sendRequest("initialize", {
-            protocolVersion: { major: 0, minor: 1, patch: 0 },
-            clientCapabilities: {},
-            clientInfo: { name: "webuild-web-ide", version: "0.1.0" },
-          });
-          resolve(result);
-        } catch (e) {
-          reject(e);
-        }
+      this.ws.onopen = () => {
+        // Relay is just a bridge — don't send initialize here.
+        // The ACP handshake happens when the agent connects to the relay.
+        resolve(true);
       };
 
       this.ws.onmessage = (event) => {
