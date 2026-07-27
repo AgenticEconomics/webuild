@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Plus, MessageSquare, Settings, Code2, Clock
+  Plus, MessageSquare, Settings, Clock
 } from 'lucide-react'
 import { useSessionStore } from '@/stores/session-store'
 import { generateId } from '@/lib/uuid'
@@ -20,9 +20,13 @@ export function Sidebar() {
       {/* Product header */}
       <div className="h-14 px-4 border-b border-console-border flex items-center">
         <Link href="/" className="flex items-center gap-2.5 group min-w-0">
-          <div className="w-8 h-8 rounded bg-console-blue flex items-center justify-center flex-shrink-0">
-            <Code2 className="w-4 h-4 text-white" strokeWidth={2.25} />
-          </div>
+          <img
+            src="/brand/webuild-mark.png"
+            alt="WeBuild"
+            width={32}
+            height={32}
+            className="w-8 h-8 rounded flex-shrink-0 object-cover ring-1 ring-console-border"
+          />
           <div className="min-w-0">
             <h1 className="text-sm font-medium text-console-ink leading-tight group-hover:text-console-blue transition-colors">
               WeBuild

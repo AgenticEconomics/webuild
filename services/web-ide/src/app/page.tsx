@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Code2, Sparkles, Zap, Terminal, Globe } from 'lucide-react'
+import { Sparkles, Zap, Terminal, Globe } from 'lucide-react'
 import { Sidebar } from '@/components/sidebar'
 import { generateId } from '@/lib/uuid'
 import { useI18n, type MessageKey } from '@/lib/i18n'
@@ -44,9 +44,13 @@ export default function DashboardPage() {
         <div className="flex-1 flex flex-col items-center px-6 pt-16 pb-10">
           {/* Hero */}
           <div className="animate-fade-in text-center max-w-xl mb-7">
-            <div className="w-12 h-12 mx-auto mb-4 rounded bg-console-blue flex items-center justify-center shadow-console-sm">
-              <Code2 className="w-6 h-6 text-white" strokeWidth={2} />
-            </div>
+            <img
+              src="/brand/webuild-mark.png"
+              alt="WeBuild"
+              width={56}
+              height={56}
+              className="w-14 h-14 mx-auto mb-4 rounded object-cover ring-1 ring-console-border shadow-console-sm"
+            />
             <h2 className="text-[26px] font-normal text-console-ink tracking-tight mb-2">
               {t('heroBefore')}
               <span className="text-console-blue font-medium">{t('heroHighlight')}</span>

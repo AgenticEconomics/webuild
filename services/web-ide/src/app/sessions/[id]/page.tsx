@@ -65,7 +65,9 @@ export default function SessionPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (!isConnected && params.id) {
-      const wsUrl = localStorage.getItem('webuild_ws_url') || `ws://${window.location.host}/ws/relay`
+      const storedWsUrl = localStorage.getItem('webuild_ws_url')
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const wsUrl = storedWsUrl || `${wsProtocol}//${window.location.host}/ws/relay`
       const token = localStorage.getItem('webuild_token') || ''
       connect(wsUrl, token, params.id).catch(() => {})
     }
