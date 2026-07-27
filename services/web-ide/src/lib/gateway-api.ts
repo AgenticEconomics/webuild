@@ -41,7 +41,8 @@ export async function listEnvironments(): Promise<SandboxEnvironment[]> {
 export async function listSandboxes(): Promise<Sandbox[]> {
   const res = await fetch(`${GATEWAY_BASE}/sandboxes`, { headers: getAuthHeaders() })
   if (!res.ok) throw new Error(`Failed to list sandboxes: ${res.status}`)
-  return res.json()
+  const data = await res.json()
+  return data.sandboxes || data || []
 }
 
 export async function createSandbox(environmentId = 'default'): Promise<Sandbox> {
