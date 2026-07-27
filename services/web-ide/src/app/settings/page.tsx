@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Sidebar } from '@/components/sidebar'
-import { Server, Key, Save, Check, Wifi, WifiOff } from 'lucide-react'
+import { Server, Key, Save, Check, Wifi, WifiOff, LogIn, Loader2 } from 'lucide-react'
 import { useSessionStore } from '@/stores/session-store'
 import { useI18n } from '@/lib/i18n'
 import { LocaleSwitcher } from '@/components/locale-switcher'
@@ -12,13 +12,44 @@ export default function SettingsPage() {
   const { t } = useI18n()
   const [wsUrl, setWsUrl] = useState(
     typeof window !== 'undefined'
-      ? localStorage.getItem('webuild_ws_url') || `ws://${window.location.hostname}:8002/ws`
+      ? localStorage.getItem('webuild_ws_url') || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}/ws/relay`
       : ''
   )
   const [token, setToken] = useState(
     typeof window !== 'undefined' ? localStorage.getItem('webuild_token') || '' : ''
   )
   const [saved, setSaved] = useState(false)
+  const [loginUser, setLoginUser] = useState('')
+  const [loginPass, setLoginPass] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
+  const [loginError, setLoginError] = useState('')
+
+  const handleLogin = async () => {
+    if (!loginUser || !loginPass) return
+    setLoginLoading(true)
+    setLoginError('')
+    try {
+      const authBase = `${window.location.protocol}//${window.location.host}/api/auth`
+      const res = await fetch(`${authBase}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginUser, password: loginPass }),
+      })
+      if (!res.ok) throw new Error(`Login failed (${res.status})`)
+      const data = await res.json()
+      localStorage.setItem('webuild_token', data.access_token)
+      localStorage.setItem('webuild_refresh_token', data.refresh_token)
+      setToken(data.access_token)
+      setLoginPass('')
+      setLoginUser('')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (e: any) {
+      setLoginError(e.message)
+    } finally {
+      setLoginLoading(false)
+    }
+  }
 
   const handleSave = () => {
     localStorage.setItem('webuild_ws_url', wsUrl)
@@ -91,14 +122,57 @@ export default function SettingsPage() {
               />
             </div>
 
-            {/* Authentication */}
+            {/* Login */}
+            <div className="console-card p-5 mb-4">
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-8 h-8 rounded bg-console-blue-soft flex items-center justify-center">
+                  <LogIn className="w-4 h-4 text-console-blue" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-console-ink">Login</h3>
+                  <p className="text-[11px] text-console-faint">Sign in with username and password</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={loginUser}
+                  onChange={(e) => setLoginUser(e.target.value)}
+                  placeholder="Username"
+                  className="console-input"
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                />
+                <form onSubmit={(e) => { e.preventDefault(); handleLogin() }}>
+                  <input
+                    type="password"
+                    value={loginPass}
+                    onChange={(e) => setLoginPass(e.target.value)}
+                    placeholder="Password"
+                    className="console-input"
+                  />
+                </form>
+                {loginError && (
+                  <p className="text-xs text-console-danger">{loginError}</p>
+                )}
+                <button
+                  onClick={handleLogin}
+                  disabled={loginLoading || !loginUser || !loginPass}
+                  className="console-btn-primary disabled:opacity-40"
+                >
+                  {loginLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                  Login
+                </button>
+              </div>
+            </div>
+
+            {/* Manual Token */}
             <div className="console-card p-5 mb-6">
               <div className="flex items-center gap-2.5 mb-4">
                 <div className="w-8 h-8 rounded bg-console-success-soft flex items-center justify-center">
                   <Key className="w-4 h-4 text-console-success" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-console-ink">{t('authentication')}</h3>
+                  <h3 className="text-sm font-medium text-console-ink">API Token (manual)</h3>
                   <p className="text-[11px] text-console-faint">{t('authDesc')}</p>
                 </div>
               </div>

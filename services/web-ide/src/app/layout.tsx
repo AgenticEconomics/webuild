@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Noto_Sans_SC, Roboto } from 'next/font/google'
 import { I18nProvider } from '@/lib/i18n'
+import { TokenRefreshProvider } from '@/components/token-refresh-provider'
 import './globals.css'
 
 const roboto = Roboto({
@@ -39,9 +40,11 @@ export default function RootLayout({
     <html lang="en" className={`${roboto.variable} ${notoSansSC.variable}`}>
       <body className="font-sans">
         <I18nProvider>
-          <div className="min-h-screen bg-console-bg text-console-ink">
-            {children}
-          </div>
+          <TokenRefreshProvider>
+            <div className="min-h-screen bg-console-bg text-console-ink">
+              {children}
+            </div>
+          </TokenRefreshProvider>
         </I18nProvider>
       </body>
     </html>

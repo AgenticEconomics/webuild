@@ -68,7 +68,8 @@ export default function SessionPage({ params }: { params: { id: string } }) {
       const storedWsUrl = localStorage.getItem('webuild_ws_url')
       // Default: connect directly to relay on port 8002 (bypasses Caddy WS proxy issues)
       const host = window.location.hostname
-      const wsUrl = storedWsUrl || `ws://${host}:8002/ws`
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const wsUrl = storedWsUrl || `${wsProtocol}//${host}/ws/relay`
       const token = localStorage.getItem('webuild_token') || ''
       connect(wsUrl, token, params.id).catch(() => {})
     }

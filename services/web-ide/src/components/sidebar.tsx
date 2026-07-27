@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Plus, MessageSquare, Settings, Clock
+  Plus, MessageSquare, Settings, Clock, Box
 } from 'lucide-react'
 import { useSessionStore } from '@/stores/session-store'
 import { generateId } from '@/lib/uuid'
@@ -79,6 +79,15 @@ export function Sidebar() {
         <div className="px-1 pb-1">
           <LocaleSwitcher compact />
         </div>
+        <Link
+          href="/sandboxes"
+          className={`console-nav-item ${
+            pathname?.startsWith('/sandboxes') ? 'console-nav-item-active' : ''
+          }`}
+        >
+          <Box className="w-4 h-4" />
+          Sandboxes
+        </Link>
         <Link
           href="/settings"
           className={`console-nav-item ${
