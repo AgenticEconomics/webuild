@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { Code2, Sparkles, Zap, Terminal, Globe } from 'lucide-react'
 import { Sidebar } from '@/components/sidebar'
+import { generateId } from '@/lib/uuid'
 
 const SUGGESTIONS = [
   { icon: Zap, text: 'Help me debug this Rust async code', color: 'text-amber-400' },
@@ -15,7 +16,7 @@ export default function DashboardPage() {
   const router = useRouter()
 
   const startSession = (prompt?: string) => {
-    const sessionId = crypto.randomUUID()
+    const sessionId = generateId()
     if (prompt) {
       sessionStorage.setItem(`initial_prompt_${sessionId}`, prompt)
     }

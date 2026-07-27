@@ -7,6 +7,7 @@ import {
   Sparkles, Clock
 } from 'lucide-react'
 import { useSessionStore } from '@/stores/session-store'
+import { generateId } from '@/lib/uuid'
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -32,7 +33,7 @@ export function Sidebar() {
       {/* New Session */}
       <div className="p-3">
         <Link
-          href={`/sessions/${crypto.randomUUID()}`}
+          href={`/sessions/${generateId()}`}
           className="flex items-center gap-2.5 w-full px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-indigo-500/20 active:scale-[0.98]"
         >
           <Plus className="w-4 h-4" />
