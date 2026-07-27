@@ -3,21 +3,23 @@
 import { useEffect, useRef, useState } from 'react'
 import { Send, Square, Wrench, AlertCircle, CheckCircle2, Clock, Loader2 } from 'lucide-react'
 import { Sidebar } from '@/components/sidebar'
+import { LocaleSwitcher } from '@/components/locale-switcher'
+import { useI18n } from '@/lib/i18n'
 import { useSessionStore, type Message, type ToolCall } from '@/stores/session-store'
 
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user'
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''} animate-fade-in`}>
-      <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-        isUser ? 'bg-indigo-600 text-white' : 'bg-gradient-to-br from-purple-500 to-pink-500 text-white'
+      <div className={`w-7 h-7 rounded flex items-center justify-center flex-shrink-0 text-[11px] font-medium ${
+        isUser ? 'bg-console-blue text-white' : 'bg-console-blue-soft text-console-blue-ink'
       }`}>
         {isUser ? 'U' : 'W'}
       </div>
-      <div className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+      <div className={`max-w-[70%] rounded px-4 py-3 text-sm leading-relaxed ${
         isUser
-          ? 'bg-indigo-600/90 text-white'
-          : 'bg-[#1e1e3a] text-gray-200 border border-[#2a2a4a]'
+          ? 'bg-console-blue text-white'
+          : 'bg-console-surface text-console-ink border border-console-border shadow-console-sm'
       }`}>
         <div className="whitespace-pre-wrap break-words">{message.content || '...'}</div>
       </div>
@@ -33,22 +35,23 @@ function ToolBadge({ tc }: { tc: ToolCall }) {
     pending: Clock,
   }
   const colors: Record<string, string> = {
-    completed: 'text-emerald-400',
-    in_progress: 'text-blue-400',
-    failed: 'text-red-400',
-    pending: 'text-gray-500',
+    completed: 'text-console-success',
+    in_progress: 'text-console-blue',
+    failed: 'text-console-danger',
+    pending: 'text-console-faint',
   }
   const Icon = icons[tc.status] || Wrench
   return (
-    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#16213e] border border-[#2a2a4a] text-xs animate-slide-in`}>
+    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-console-border bg-console-surface text-xs animate-slide-in shadow-console-sm">
       <Icon className={`w-3 h-3 ${colors[tc.status]} ${tc.status === 'in_progress' ? 'animate-spin' : ''}`} />
-      <span className="text-gray-300 truncate max-w-[160px]">{tc.title}</span>
+      <span className="text-console-muted truncate max-w-[160px]">{tc.title}</span>
     </div>
   )
 }
 
 export default function SessionPage({ params }: { params: { id: string } }) {
   const { messages, toolCalls, activeSessionId, isConnected, connect, sendMessage, cancelCurrent } = useSessionStore()
+  const { t } = useI18n()
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -61,12 +64,12 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   }, [params.id, activeSessionId])
 
   useEffect(() => {
-    if (!isConnected) {
+    if (!isConnected && params.id) {
       const wsUrl = localStorage.getItem('webuild_ws_url') || `ws://${window.location.host}/ws/relay`
       const token = localStorage.getItem('webuild_token') || ''
-      connect(wsUrl, token).catch(() => {})
+      connect(wsUrl, token, params.id).catch(() => {})
     }
-  }, [isConnected, connect])
+  }, [isConnected, connect, params.id])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -113,18 +116,29 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     <div className="flex h-screen">
       <Sidebar />
 
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className="flex-1 flex flex-col min-w-0 bg-console-bg">
         {/* Header */}
-        <header className="h-14 border-b border-[#2a2a4a] flex items-center px-5 flex-shrink-0">
+        <header className="h-14 border-b border-console-border bg-console-surface flex items-center px-5 flex-shrink-0">
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-400">Session</span>
-            <span className="text-gray-600">/</span>
-            <span className="text-gray-200 font-mono text-xs">{activeSessionId?.slice(0, 8)}...</span>
+            <span className="text-console-muted">{t('session')}</span>
+            <span className="text-console-border-strong">/</span>
+            <span className="text-console-ink font-mono text-xs">
+              {activeSessionId?.slice(0, 8)}...
+            </span>
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <div className={`flex items-center gap-1.5 text-[11px] ${isConnected ? 'text-emerald-400' : 'text-red-400'}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse-dot' : 'bg-red-400'}`} />
-              {isConnected ? 'Connected' : 'Disconnected'}
+            <LocaleSwitcher />
+            <div
+              className={`flex items-center gap-1.5 text-[11px] ${
+                isConnected ? 'text-console-success' : 'text-console-danger'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isConnected ? 'bg-console-success animate-pulse-dot' : 'bg-console-danger'
+                }`}
+              />
+              {isConnected ? t('connected') : t('disconnected')}
             </div>
           </div>
         </header>
@@ -134,10 +148,10 @@ export default function SessionPage({ params }: { params: { id: string } }) {
           <div className="max-w-3xl mx-auto px-6 py-8 space-y-5">
             {messages.length === 0 && (
               <div className="text-center py-16">
-                <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center opacity-40">
-                  <Send className="w-5 h-5 text-white" />
+                <div className="w-12 h-12 mx-auto mb-4 rounded bg-console-blue-soft flex items-center justify-center">
+                  <Send className="w-5 h-5 text-console-blue" />
                 </div>
-                <p className="text-gray-500 text-sm">Start the conversation below</p>
+                <p className="text-console-muted text-sm">{t('startConversation')}</p>
               </div>
             )}
             {messages.map((msg) => (
@@ -158,24 +172,24 @@ export default function SessionPage({ params }: { params: { id: string } }) {
         </div>
 
         {/* Input */}
-        <div className="border-t border-[#2a2a4a] px-6 py-4 flex-shrink-0">
+        <div className="border-t border-console-border bg-console-surface px-6 py-4 flex-shrink-0">
           <div className="max-w-3xl mx-auto">
-            <div className="glass rounded-2xl p-1.5 shadow-lg shadow-black/20">
+            <div className="console-card shadow-console p-1.5">
               <div className="flex items-end gap-2">
                 <textarea
                   ref={textareaRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={isConnected ? 'Message WeBuild...' : 'Connecting...'}
+                  placeholder={isConnected ? t('messagePlaceholder') : t('connecting')}
                   disabled={!isConnected}
                   rows={1}
-                  className="flex-1 bg-transparent px-3.5 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none resize-none disabled:opacity-40"
+                  className="flex-1 bg-transparent px-3.5 py-2.5 text-sm text-console-ink placeholder:text-console-faint focus:outline-none resize-none disabled:opacity-40"
                 />
                 {sending ? (
                   <button
                     onClick={cancelCurrent}
-                    className="p-2.5 rounded-xl bg-red-600/80 hover:bg-red-500 text-white transition-all"
+                    className="p-2.5 rounded bg-console-danger text-white hover:opacity-90 transition-opacity"
                   >
                     <Square className="w-4 h-4" />
                   </button>
@@ -183,15 +197,22 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                   <button
                     onClick={() => handleSend()}
                     disabled={!input.trim() || !isConnected}
-                    className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.95]"
+                    className="p-2.5 rounded bg-console-blue text-white hover:bg-console-blue-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <Send className="w-4 h-4" />
                   </button>
                 )}
               </div>
             </div>
-            <p className="text-[10px] text-gray-600 text-center mt-2">
-              <kbd className="px-1 py-0.5 rounded bg-[#16213e] text-gray-500">Enter</kbd> to send · <kbd className="px-1 py-0.5 rounded bg-[#16213e] text-gray-500">Shift+Enter</kbd> for newline
+            <p className="text-[10px] text-console-faint text-center mt-2">
+              <kbd className="px-1 py-0.5 rounded border border-console-border bg-console-bg text-console-muted">
+                Enter
+              </kbd>{' '}
+              {t('toSend')} ·{' '}
+              <kbd className="px-1 py-0.5 rounded border border-console-border bg-console-bg text-console-muted">
+                Shift+Enter
+              </kbd>{' '}
+              {t('forNewline')}
             </p>
           </div>
         </div>

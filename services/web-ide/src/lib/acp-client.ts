@@ -56,13 +56,23 @@ export class AcpClient {
   private token = "";
   private intentionalClose = false;
 
-  async connect(wsUrl: string, token: string): Promise<unknown> {
+  private sessionId = "";
+
+  async connect(wsUrl: string, token: string, sessionId?: string): Promise<unknown> {
     this.wsUrl = wsUrl;
     this.token = token;
+    this.sessionId = sessionId || "";
     this.intentionalClose = false;
 
+    const params = new URLSearchParams()
+    if (token) params.set("token", token)
+    if (this.sessionId) params.set("session_id", this.sessionId)
+    params.set("role", "browser")
+    const queryStr = params.toString()
+    const fullUrl = queryStr ? `${wsUrl}?${queryStr}` : wsUrl
+
     return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(`${wsUrl}?token=${token}`);
+      this.ws = new WebSocket(fullUrl);
 
       this.ws.onopen = async () => {
         try {

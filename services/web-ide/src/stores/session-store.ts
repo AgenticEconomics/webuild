@@ -31,7 +31,7 @@ interface SessionState {
   messages: Message[];
   toolCalls: ToolCall[];
 
-  connect: (wsUrl: string, token: string) => Promise<void>;
+  connect: (wsUrl: string, token: string, sessionId?: string) => Promise<void>;
   disconnect: () => void;
   createSession: (cwd: string) => Promise<string>;
   sendMessage: (text: string) => Promise<void>;
@@ -51,7 +51,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   messages: [],
   toolCalls: [],
 
-  connect: async (wsUrl, token) => {
+  connect: async (wsUrl, token, sessionId) => {
     const client = new AcpClient();
 
     client.onSessionUpdate((sessionId, update) => {
@@ -128,7 +128,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       set({ isConnected: false });
     });
 
-    await client.connect(wsUrl, token);
+    await client.connect(wsUrl, token, sessionId);
     set({ client, isConnected: true });
   },
 

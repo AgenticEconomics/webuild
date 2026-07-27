@@ -1,12 +1,25 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Noto_Sans_SC, Roboto } from 'next/font/google'
+import { I18nProvider } from '@/lib/i18n'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
+const roboto = Roboto({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-console',
+  display: 'swap',
+})
+
+const notoSansSC = Noto_Sans_SC({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-console-zh',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'WeBuild Web IDE',
-  description: 'AI-powered programming assistant',
+  description: 'Agentics Assistant',
 }
 
 export default function RootLayout({
@@ -15,11 +28,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={inter.className}>
-        <div className="min-h-screen bg-gray-900 text-gray-100">
-          {children}
-        </div>
+    <html lang="en" className={`${roboto.variable} ${notoSansSC.variable}`}>
+      <body className="font-sans">
+        <I18nProvider>
+          <div className="min-h-screen bg-console-bg text-console-ink">
+            {children}
+          </div>
+        </I18nProvider>
       </body>
     </html>
   )
