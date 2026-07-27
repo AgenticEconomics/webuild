@@ -45,11 +45,11 @@ export default function DashboardPage() {
           {/* Hero */}
           <div className="animate-fade-in text-center max-w-xl mb-7">
             <img
-              src="/brand/webuild-mark.png"
+              src="/brand/webuild-wordmark.png"
               alt="WeBuild"
-              width={56}
-              height={56}
-              className="w-14 h-14 mx-auto mb-4 rounded object-cover ring-1 ring-console-border shadow-console-sm"
+              width={220}
+              height={55}
+              className="h-[55px] w-auto mx-auto mb-5 object-contain"
             />
             <h2 className="text-[26px] font-normal text-console-ink tracking-tight mb-2">
               {t('heroBefore')}

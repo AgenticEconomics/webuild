@@ -21,20 +21,15 @@ export function Sidebar() {
       <div className="h-14 px-4 border-b border-console-border flex items-center">
         <Link href="/" className="flex items-center gap-2.5 group min-w-0">
           <img
-            src="/brand/webuild-mark.png"
+            src="/brand/webuild-wordmark.png"
             alt="WeBuild"
-            width={32}
-            height={32}
-            className="w-8 h-8 rounded flex-shrink-0 object-cover ring-1 ring-console-border"
+            width={120}
+            height={30}
+            className="h-[30px] w-auto flex-shrink-0 object-contain"
           />
-          <div className="min-w-0">
-            <h1 className="text-sm font-medium text-console-ink leading-tight group-hover:text-console-blue transition-colors">
-              WeBuild
-            </h1>
-            <p className="text-[11px] text-console-faint leading-tight truncate">
-              {t('tagline')}
-            </p>
-          </div>
+          <p className="min-w-0 text-[11px] text-console-faint leading-tight truncate">
+            {t('tagline')}
+          </p>
         </Link>
       </div>
 

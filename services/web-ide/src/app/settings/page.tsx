@@ -12,7 +12,7 @@ export default function SettingsPage() {
   const { t } = useI18n()
   const [wsUrl, setWsUrl] = useState(
     typeof window !== 'undefined'
-      ? localStorage.getItem('webuild_ws_url') || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/relay`
+      ? localStorage.getItem('webuild_ws_url') || `ws://${window.location.hostname}:8002/ws`
       : ''
   )
   const [token, setToken] = useState(
