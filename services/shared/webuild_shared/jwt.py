@@ -10,7 +10,7 @@ import jwt
 class TokenPayload:
     sub: str
     scopes: list[str] = field(default_factory=list)
-    iss: str = "webuild.agentics-economics.org"
+    iss: str = "webuild.datoms.cn"
     aud: list[str] = field(default_factory=lambda: ["webuild"])
     exp: int = 0
     iat: int = 0
@@ -39,7 +39,7 @@ class JWTManager:
         payload = {
             "sub": user_id,
             "scopes": scopes or ["agent.use"],
-            "iss": "webuild.agentics-economics.org",
+            "iss": "webuild.datoms.cn",
             "aud": ["webuild"],
             "iat": now,
             "exp": now + self.access_expire,
@@ -52,7 +52,7 @@ class JWTManager:
         now = int(time.time())
         payload = {
             "sub": user_id,
-            "iss": "webuild.agentics-economics.org",
+            "iss": "webuild.datoms.cn",
             "aud": ["webuild"],
             "iat": now,
             "exp": now + self.refresh_expire,
@@ -67,7 +67,7 @@ class JWTManager:
             self.secret,
             algorithms=[self.algorithm],
             audience=["webuild"],
-            issuer="webuild.agentics-economics.org",
+            issuer="webuild.datoms.cn",
         )
         if decoded.get("type") != expected_type:
             raise jwt.InvalidTokenError(f"Expected {expected_type} token")

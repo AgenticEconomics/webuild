@@ -18,7 +18,7 @@ Phase II 将 WeBuild 从纯终端 CLI 工具扩展为**浏览器可用的 AI 编
 | **核心服务部署** | 独立 ECS + Docker Compose | 与生产 ACK 集群物理隔离，零干扰 |
 | **沙箱执行** | 阿里云 ACS Serverless (ECI) | 零节点运维，秒级弹性，按 Pod 计费 |
 | **反向代理** | 复用 XinGu Caddy | 避免新增 Nginx，host-based 路由隔离 |
-| **域名** | `webuild.agentics-economics.org` | 单域名 + 路径路由，无 CORS |
+| **域名** | `webuild.datoms.cn` | 单域名 + 路径路由，无 CORS |
 | **数据库** | PostgreSQL (Docker) | 初期够用，无需 RDS |
 | **LLM Agent** | Python 轻量 Agent + DashScope | 快速验证，无需依赖 Rust CLI |
 
@@ -46,14 +46,14 @@ Phase II 将 WeBuild 从纯终端 CLI 工具扩展为**浏览器可用的 AI 编
 
 | Crate | 修改内容 |
 |-------|---------|
-| `xai-webuild-env` | 新增 Staging 变体，Production + Staging 均指向 `webuild.agentics-economics.org` |
+| `xai-webuild-env` | 新增 Staging 变体，Production + Staging 均指向 `webuild.datoms.cn` |
 
 ### 3.4 基础设施配置
 
 | 组件 | 配置 |
 |------|------|
 | **Docker Compose** | `deploy/docker-compose.yml` + override（生产/开发双模式） |
-| **Caddy** | host-based 路由：`webuild.agentics-economics.org` → WeBuild，其他 → XinGu |
+| **Caddy** | host-based 路由：`webuild.datoms.cn` → WeBuild，其他 → XinGu |
 | **ACS 集群** | namespace `webuild-sandbox`、ServiceAccount、RBAC、NetworkPolicy（14 个 K8s 资源） |
 | **沙箱镜像** | `sandbox/Dockerfile`（Ubuntu 24.04 + webuild 二进制 + 非 root 用户） |
 | **CI/CD** | `.gitlab-ci.yml` 扩展 `build-images` + `deploy-ecs` 阶段 |
@@ -99,7 +99,7 @@ a9edf1b  Fix reconnect loop: don't send ACP initialize to relay
                           │  ECS 8.136.127.63                  │
                           │                                    │
  浏览器 ──HTTP──→ :80     │  Caddy (host-based routing)        │
-                          │  ├─ webuild.agentics-economics.org │
+                          │  ├─ webuild.datoms.cn │
                           │  │  ├─ /api/auth/*  → :8001       │
                           │  │  ├─ /api/relay/* → :8002       │
                           │  │  ├─ /ws/hub      → :8003       │

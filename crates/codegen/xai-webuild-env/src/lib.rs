@@ -20,11 +20,11 @@ pub struct WeBuildEndpoints {
     pub ws_origin: &'static str,
 }
 const WEBUILD_ENDPOINTS: WeBuildEndpoints = WeBuildEndpoints {
-    cli_chat_proxy_base_url: "https://webuild.agentics-economics.org/api/auth",
-    asset_server_url: "https://webuild.agentics-economics.org",
-    relay_ws_url: "wss://webuild.agentics-economics.org/ws/relay",
-    gateway_ws_url: "wss://webuild.agentics-economics.org/ws/gateway",
-    ws_origin: "https://webuild.agentics-economics.org",
+    cli_chat_proxy_base_url: "https://webuild.datoms.cn/api/auth",
+    asset_server_url: "https://webuild.datoms.cn",
+    relay_ws_url: "wss://webuild.datoms.cn/ws/relay",
+    gateway_ws_url: "wss://webuild.datoms.cn/ws/gateway",
+    ws_origin: "https://webuild.datoms.cn",
 };
 const PRODUCTION_ENDPOINTS: WeBuildEndpoints = WEBUILD_ENDPOINTS;
 const STAGING_ENDPOINTS: WeBuildEndpoints = WEBUILD_ENDPOINTS;
@@ -218,8 +218,8 @@ mod tests {
     #[test]
     fn staging_endpoints_use_webuild_domain() {
         let staging = WeBuildEnvironment::Staging;
-        assert!(staging.relay_ws_url().contains("webuild.agentics-economics.org"));
-        assert!(staging.gateway_ws_url().contains("webuild.agentics-economics.org"));
-        assert!(staging.ws_origin().contains("webuild.agentics-economics.org"));
+        assert!(staging.relay_ws_url().contains("webuild.datoms.cn"));
+        assert!(staging.gateway_ws_url().contains("webuild.datoms.cn"));
+        assert!(staging.ws_origin().contains("webuild.datoms.cn"));
     }
 }
