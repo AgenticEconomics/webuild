@@ -262,18 +262,17 @@ fn build_unpinned(
     }
 }
 
-/// Whether this fork should advertise browser / grok.com-style interactive login.
+/// Whether this fork should advertise browser / webuild.datoms.cn-style interactive login.
 ///
-/// Default is **off**: day-to-day use is API-key (DASHSCOPE_API_KEY / model
-/// `env_key`). Opt in with `WEBUILD_ENABLE_BROWSER_LOGIN=1` (or any truthy
-/// value), or when enterprise OIDC / `auth_provider_command` is configured.
+/// Default is **on**: WeBuild uses its own auth service at webuild.datoms.cn.
+/// Opt out with `WEBUILD_ENABLE_BROWSER_LOGIN=0`.
 pub fn browser_login_enabled() -> bool {
     match std::env::var("WEBUILD_ENABLE_BROWSER_LOGIN") {
         Ok(v) => {
             let t = v.trim().to_ascii_lowercase();
             !(t.is_empty() || t == "0" || t == "false" || t == "no" || t == "off")
         }
-        Err(_) => false,
+        Err(_) => true,
     }
 }
 
@@ -404,7 +403,7 @@ pub fn session_token_auth_gate(
 }
 
 pub const AUTH_ERROR_SESSION_EXPIRED: &str =
-    "Session expired. Set DASHSCOPE_API_KEY / QWEN_API_KEY (or XAI_API_KEY for xAI models), or run `webuild login` if browser login is enabled.";
+    "Session expired. Set DASHSCOPE_API_KEY / QWEN_API_KEY (or XAI_API_KEY for xAI models), or run `webuild login` to re-authenticate via webuild.datoms.cn.";
 
 pub const AUTH_ERROR_API_KEY: &str = "Authentication failed. Set DASHSCOPE_API_KEY or QWEN_API_KEY for qwen3.7-max, set XAI_API_KEY for xAI models, or add api_key/env_key under [model.*] in ~/.webuild/config.toml.";
 
@@ -436,7 +435,7 @@ pub const PREFERRED_API_KEY_UNAVAILABLE: &str = "No API key configured. For the 
 
 /// Error when `preferred_method=oidc` but the session path cannot proceed.
 pub const PREFERRED_OIDC_UNAVAILABLE: &str =
-    "preferred_method=oidc but no session is available. Run `webuild login` (with WEBUILD_ENABLE_BROWSER_LOGIN=1 if needed) to authenticate.";
+    "preferred_method=oidc but no session is available. Run `webuild login` to authenticate via webuild.datoms.cn.";
 
 pub const XAI_API_KEY_METHOD_ID: &str = "xai.api_key";
 pub fn xai_api_key_auth_method() -> acp::AuthMethod {
@@ -463,14 +462,14 @@ pub fn cached_token_auth_method() -> acp::AuthMethod {
     )
 }
 
-pub const WEBUILD_COM_METHOD_ID: &str = "grok.com";
+pub const WEBUILD_COM_METHOD_ID: &str = "webuild.datoms.cn";
 
-/// xAI OAuth2/OIDC auth. Method id `"grok.com"` kept for ACP wire-compat.
+/// WeBuild OAuth2/OIDC auth. Method id `"webuild.datoms.cn"` for our self-hosted auth service.
 pub fn webuild_com_auth_method(
     label: Option<&str>,
     has_auth_provider_command: bool,
 ) -> acp::AuthMethod {
-    let name = label.unwrap_or("WeBuild");
+    let name = label.unwrap_or("webuild.datoms.cn");
     let meta = if has_auth_provider_command {
         let mut m = acp::Meta::new();
         m.insert("external_provider".to_owned(), serde_json::json!(true));

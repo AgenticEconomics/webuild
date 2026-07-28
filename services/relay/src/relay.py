@@ -77,13 +77,20 @@ async def _keepalive(ws: WebSocket, session_id: str, role: str) -> None:
 async def _wait_for_pair(
     session_id: str,
     pair: SessionPair,
-    timeout: float = 300.0,
+    timeout: float = 120.0,
 ) -> bool:
-    """Wait until both browser and agent are connected, or timeout."""
+    """Wait until both browser and agent are connected, or timeout.
+
+    Default 120s — long enough for agent /discover polling, short enough
+    to avoid zombie agents camping on abandoned sessions for 5 minutes.
+    """
     deadline = asyncio.get_event_loop().time() + timeout
     while asyncio.get_event_loop().time() < deadline:
         if pair.browser_ws is not None and pair.agent_ws is not None:
             return True
+        # Bail early if the waiting side already dropped
+        if pair.status == SessionStatus.CLOSED:
+            return False
         await asyncio.sleep(0.5)
     return False
 
@@ -218,9 +225,13 @@ async def websocket_endpoint(
         pair = await _session_manager.register_agent(session_id, ws)
         if pair is None:
             await ws.send_text(
-                make_error_response(None, INTERNAL_ERROR, "Failed to register agent")
+                make_error_response(
+                    None,
+                    INTERNAL_ERROR,
+                    "Agent already active for this session",
+                )
             )
-            await ws.close(code=status.WS_1011_INTERNAL_ERROR)
+            await ws.close(code=status.WS_1008_POLICY_VIOLATION)
             return
     else:
         await ws.send_text(

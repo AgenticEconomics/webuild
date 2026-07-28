@@ -173,12 +173,14 @@ export class AcpClient {
       const msg: JsonRpcRequest = { jsonrpc: "2.0", id, method, params };
       this.ws.send(JSON.stringify(msg));
 
+      // LLM turns can exceed 30s; session/prompt needs a longer budget
+      const timeoutMs = method === "session/prompt" ? 180000 : 30000;
       setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id);
           reject(new Error(`Request ${method} timed out`));
         }
-      }, 30000);
+      }, timeoutMs);
     });
   }
 

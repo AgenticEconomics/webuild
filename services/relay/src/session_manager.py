@@ -140,10 +140,23 @@ class SessionManager:
             return pair
 
     async def register_agent(self, session_id: str, ws: Any) -> SessionPair | None:
-        """Register an agent WebSocket for an existing session."""
+        """Register an agent WebSocket for an existing session.
+
+        If an agent is already actively routing, reject the newcomer so a late
+        sandbox agent cannot steal the socket from the live lightweight agent
+        (or vice versa).
+        """
         async with self._lock:
             pair = self._sessions.get(session_id)
             if pair is None:
+                return None
+            if pair.agent_ws is not None and (
+                pair.is_routing or pair.status == SessionStatus.ACTIVE
+            ):
+                logger.warning(
+                    "session.agent_rejected_already_active",
+                    session_id=session_id,
+                )
                 return None
             pair.agent_ws = ws
             pair.touch()

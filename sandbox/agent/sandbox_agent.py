@@ -168,6 +168,8 @@ class SandboxSession:
 async def connect_to_relay():
     """Connect to the Relay as an agent and handle messages."""
     from urllib.parse import urlencode
+    import time
+
     params = {
         "session_id": SESSION_ID,
         "role": "agent",
@@ -178,7 +180,9 @@ async def connect_to_relay():
     url = f"{RELAY_URL}?{urlencode(params)}"
     logger.info("sandbox.connecting", url=RELAY_URL, session_id=SESSION_ID)
 
+    delay = RECONNECT_DELAY
     while True:
+        started = time.monotonic()
         try:
             async with websockets.connect(url, open_timeout=10, ping_interval=20) as ws:
                 logger.info("sandbox.connected", session_id=SESSION_ID)
@@ -192,8 +196,15 @@ async def connect_to_relay():
         except Exception as e:
             logger.error("sandbox.connection_error", error=str(e))
 
-        logger.info("sandbox.reconnecting", delay=RECONNECT_DELAY)
-        await asyncio.sleep(RECONNECT_DELAY)
+        # If rejected quickly (e.g. another agent already active), back off harder
+        lived = time.monotonic() - started
+        if lived < 5:
+            delay = min(max(delay * 2, 10), 60)
+        else:
+            delay = RECONNECT_DELAY
+
+        logger.info("sandbox.reconnecting", delay=delay, lived=round(lived, 1))
+        await asyncio.sleep(delay)
 
 
 async def main():
