@@ -1,6 +1,6 @@
 # Phase V — 沙箱完整 WeBuild Agent + 全工具能力
 
-> **状态**: 实施方案（2026-07-28）  
+> **状态**: V1–V3 已交付（见 [`phase-v-summary-report.md`](./phase-v-summary-report.md)）；V4 Hub 未开始  
 > **目标**: ACS 沙箱内运行完整 Rust `webuild` Agent，具备与本地 CLI 同等的工具能力；可选通过 Hub 访问用户本机 Workspace。  
 > **前置**: Phase II–IV 已上线（Web IDE / Relay / Gateway / 轻量 Python sandbox agent）
 
@@ -219,9 +219,11 @@ Ingress: deny-all（Agent 只出站）
 2. [x] **V1.2** 改 Gateway 模板 / k8s_client / compose RELAY_URL
 3. [x] **V2.1** Relay 接受 Authorization Bearer
 4. [x] **V2.2** Rust sandbox headless：URL 组装 + 绕过 OIDC + YOLO
-5. [ ] **V1.3** 本地/CI 构建 sandbox 镜像并让 Gateway 指向它（需 ACR 推送 + 重编含沙箱模式的 webuild）
-6. [ ] **V3** E2E 验证工具调用
+5. [x] **V1.3** 本地/CI 构建 sandbox 镜像并让 Gateway 指向它（ACR `latest`/`phase-v`/`01fad79` 已对齐）
+6. [x] **V3** E2E 验证工具调用（`/workspace/hello.txt` 落盘）
 7. [ ] **V4** Hub（可并行设计，串行联调）
+
+阶段性总结见 [`phase-v-summary-report.md`](./phase-v-summary-report.md)。
 
 ---
 
