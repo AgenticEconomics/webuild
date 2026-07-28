@@ -57,6 +57,8 @@ export class AcpClient {
   private intentionalClose = false;
 
   private sessionId = "";
+  /** True after initialize + session/new for the current WS pairing */
+  private acpSessionReady = false;
 
   async connect(wsUrl: string, token: string, sessionId?: string): Promise<unknown> {
     this.wsUrl = wsUrl;
@@ -64,6 +66,7 @@ export class AcpClient {
     // Preserve existing sessionId on reconnect when arg omitted
     if (sessionId) this.sessionId = sessionId;
     this.intentionalClose = false;
+    this.acpSessionReady = false;
 
     if (!this.sessionId) {
       return Promise.reject(new Error("session_id is required for WebSocket connect"));
@@ -80,8 +83,8 @@ export class AcpClient {
       this.ws = new WebSocket(fullUrl);
 
       this.ws.onopen = () => {
-        // Relay is just a bridge — don't send initialize here.
-        // The ACP handshake happens when the agent connects to the relay.
+        // Relay is a bridge only. ACP initialize/session/new run once the
+        // agent is paired (see ensureAcpSession).
         resolve(true);
       };
 
@@ -90,6 +93,7 @@ export class AcpClient {
       };
 
       this.ws.onclose = (event) => {
+        this.acpSessionReady = false;
         if (!this.intentionalClose) {
           this.scheduleReconnect();
         }
@@ -100,6 +104,26 @@ export class AcpClient {
         reject(new Error("WebSocket connection failed"));
       };
     });
+  }
+
+  isAcpReady(): boolean {
+    return this.acpSessionReady;
+  }
+
+  /**
+   * Full ACP handshake required by Rust webuild agent.
+   * Pins session id via `_meta.sessionId` so Relay UUID == ACP sessionId.
+   */
+  async ensureAcpSession(cwd = "/workspace", sessionId?: string): Promise<string> {
+    const sid = sessionId || this.sessionId;
+    if (!sid) throw new Error("sessionId is required for ACP session");
+    if (this.acpSessionReady && this.sessionId === sid) return sid;
+
+    await this.initialize();
+    const { sessionId: created } = await this.newSession(cwd, sid);
+    this.sessionId = created || sid;
+    this.acpSessionReady = true;
+    return this.sessionId;
   }
 
   disconnect() {
@@ -113,12 +137,42 @@ export class AcpClient {
     this.pendingRequests.clear();
   }
 
-  async newSession(cwd: string): Promise<{ sessionId: string }> {
-    const result = await this.sendRequest("session/new", { cwd, mcpServers: [] });
+  async initialize(): Promise<unknown> {
+    // Do NOT advertise client FS/terminal capabilities. The ACS sandbox agent
+    // must use its local /workspace filesystem. Claiming fs.readTextFile here
+    // caused the agent to call fs/read_text_file on the browser and hang forever
+    // because Web IDE never implements those client methods.
+    return this.sendRequest("initialize", {
+      protocolVersion: 1,
+      clientCapabilities: {
+        fs: { readTextFile: false, writeTextFile: false },
+        terminal: false,
+      },
+      clientInfo: { name: "webuild-web-ide", version: "0.1.0" },
+      _meta: { clientIdentifier: "webuild-web", clientType: "webuild-web" },
+    });
+  }
+
+  async newSession(
+    cwd: string,
+    sessionId?: string,
+  ): Promise<{ sessionId: string }> {
+    const params: Record<string, unknown> = {
+      cwd,
+      mcpServers: [],
+    };
+    if (sessionId) {
+      // Rust MvpAgent uses _meta.sessionId to reuse the Relay UUID
+      params._meta = { sessionId, yoloMode: true };
+    }
+    const result = await this.sendRequest("session/new", params);
     return result as { sessionId: string };
   }
 
   async prompt(sessionId: string, text: string): Promise<unknown> {
+    if (!this.acpSessionReady) {
+      await this.ensureAcpSession("/workspace", sessionId);
+    }
     return this.sendRequest("session/prompt", {
       sessionId,
       prompt: [{ type: "text", text }],
@@ -135,19 +189,26 @@ export class AcpClient {
   }
 
   async respondPermission(requestId: number, optionId: string) {
-    const pending = this.pendingRequests.get(requestId);
-    if (pending) {
-      pending.resolve({ outcome: "selected", optionId });
-      this.pendingRequests.delete(requestId);
-    }
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    // Inbound agent request → send JSON-RPC response (not resolve our outbound map)
+    this.ws.send(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: requestId,
+        result: { outcome: { outcome: "selected", optionId } },
+      }),
+    );
   }
 
   rejectPermission(requestId: number) {
-    const pending = this.pendingRequests.get(requestId);
-    if (pending) {
-      pending.resolve({ outcome: "cancelled" });
-      this.pendingRequests.delete(requestId);
-    }
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    this.ws.send(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: requestId,
+        result: { outcome: { outcome: "cancelled" } },
+      }),
+    );
   }
 
   onSessionUpdate(handler: SessionUpdateHandler) {
@@ -173,8 +234,11 @@ export class AcpClient {
       const msg: JsonRpcRequest = { jsonrpc: "2.0", id, method, params };
       this.ws.send(JSON.stringify(msg));
 
-      // LLM turns can exceed 30s; session/prompt needs a longer budget
-      const timeoutMs = method === "session/prompt" ? 180000 : 30000;
+      // LLM turns can exceed 30s; session setup can also be slow in sandbox
+      const timeoutMs =
+        method === "session/prompt" ? 180000 :
+        method === "session/new" || method === "initialize" ? 60000 :
+        30000;
       setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id);

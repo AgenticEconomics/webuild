@@ -61,6 +61,10 @@ Browser (Web IDE)
 | S5 | （V-B）Hub 可路由到本机 Workspace 工具 |
 | S6 | Python ConfigMap 路径降级为 fallback / 可关闭 |
 
+### 已知修复（2026-07-28）
+
+Web IDE 原先只发 `session/prompt`（Python 轻量 agent 可接受），完整 Rust agent 要求先 `initialize` + `session/new`（`_meta.sessionId` = Relay UUID）。已在 Web IDE 中：等 `agent_connected` → ACP handshake → 再允许 prompt。
+
 ---
 
 ## 3. 分阶段实施

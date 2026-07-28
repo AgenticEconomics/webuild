@@ -82,7 +82,7 @@ sep='?'
 case "$RELAY_URL" in
     *\?*) sep='&' ;;
 esac
-WS_URL="${RELAY_URL}${sep}session_id=${SESSION_ID}&role=agent&token=${RELAY_TOKEN}"
+WS_URL="${RELAY_URL}${sep}session_id=${SESSION_ID}&role=agent&token=${RELAY_TOKEN}&agent_kind=sandbox"
 if [ -n "${WEBUILD_USER_ID:-}" ]; then
     WS_URL="${WS_URL}&user_id=${WEBUILD_USER_ID}"
 fi

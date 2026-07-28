@@ -99,25 +99,44 @@ class SandboxManager:
         now = datetime.now(timezone.utc)
         expires_at = now + timedelta(seconds=env.max_ttl_seconds)
 
-        # Reject duplicate ids early
+        # Reject active duplicates; allow recreate when previously terminated
+        # (e.g. ImagePullBackOff recovery after refreshing ACR pull secret).
         async with self._session_factory() as session:
             existing = await session.execute(select(Sandbox).where(Sandbox.id == sandbox_id))
-            if existing.scalar_one_or_none() is not None:
-                raise ValueError(f"Sandbox already exists: {sandbox_id}")
+            row = existing.scalar_one_or_none()
+            if row is not None:
+                if row.status != SandboxStatus.terminated.value:
+                    raise ValueError(f"Sandbox already exists: {sandbox_id}")
+                await session.execute(
+                    update(Sandbox)
+                    .where(Sandbox.id == sandbox_id)
+                    .values(
+                        user_id=uuid.UUID(user_id),
+                        environment_id=request.environment_id,
+                        status=SandboxStatus.creating.value,
+                        pod_name=None,
+                        namespace="webuild-sandbox",
+                        created_at=now,
+                        expires_at=expires_at,
+                        terminated_at=None,
+                    )
+                )
+                await session.commit()
+            else:
+                sandbox = Sandbox(
+                    id=sandbox_id,
+                    user_id=uuid.UUID(user_id),
+                    environment_id=request.environment_id,
+                    status=SandboxStatus.creating.value,
+                    namespace="webuild-sandbox",
+                    created_at=now,
+                    expires_at=expires_at,
+                )
+                session.add(sandbox)
+                await session.commit()
 
-        # DB record first (status=creating)
-        async with self._session_factory() as session:
-            sandbox = Sandbox(
-                id=sandbox_id,
-                user_id=uuid.UUID(user_id),
-                environment_id=request.environment_id,
-                status=SandboxStatus.creating.value,
-                namespace="webuild-sandbox",
-                created_at=now,
-                expires_at=expires_at,
-            )
-            session.add(sandbox)
-            await session.commit()
+        # Ensure no stale pod/service leftovers before provisioning
+        await asyncio.to_thread(self._k8s.delete_sandbox_pod, sandbox_id)
 
         # Provision pod (blocking K8s call — run in thread)
         try:

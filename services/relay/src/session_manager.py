@@ -36,6 +36,9 @@ class SessionPair:
     agent_ws: Any = None
     title: str | None = None
     model: str | None = None
+    # When True, /discover must not hand this session to the lightweight ECS agent;
+    # a cloud sandbox (full webuild) will join instead.
+    prefer_sandbox: bool = False
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     # Lock to serialize writes to each WebSocket
@@ -67,6 +70,7 @@ class SessionManager:
         session_id: str | None = None,
         title: str | None = None,
         model: str | None = None,
+        prefer_sandbox: bool = False,
     ) -> SessionPair:
         """Create a new session and return the pair (initially waiting for agent)."""
         sid = session_id or str(uuid.uuid4())
@@ -79,10 +83,26 @@ class SessionManager:
                 status=SessionStatus.WAITING_AGENT,
                 title=title,
                 model=model,
+                prefer_sandbox=prefer_sandbox,
             )
             self._sessions[sid] = pair
             self._user_index.setdefault(user_id, set()).add(sid)
-            logger.info("session.created", session_id=sid, user_id=user_id)
+            logger.info(
+                "session.created",
+                session_id=sid,
+                user_id=user_id,
+                prefer_sandbox=prefer_sandbox,
+            )
+            return pair
+
+    async def set_prefer_sandbox(self, session_id: str, prefer: bool = True) -> SessionPair | None:
+        async with self._lock:
+            pair = self._sessions.get(session_id)
+            if pair is None:
+                return None
+            pair.prefer_sandbox = prefer
+            pair.touch()
+            logger.info("session.prefer_sandbox", session_id=session_id, prefer=prefer)
             return pair
 
     async def get_session(self, session_id: str) -> SessionPair | None:
@@ -139,13 +159,19 @@ class SessionManager:
             logger.info("session.browser_registered", session_id=session_id)
             return pair
 
-    async def register_agent(self, session_id: str, ws: Any) -> SessionPair | None:
+    async def register_agent(
+        self,
+        session_id: str,
+        ws: Any,
+        *,
+        agent_kind: str | None = None,
+    ) -> SessionPair | None:
         """Register an agent WebSocket for an existing session.
 
-        If an agent is already actively routing, reject the newcomer so a late
-        sandbox agent cannot steal the socket from the live lightweight agent
-        (or vice versa).
+        Cloud sandbox agents (`agent_kind=sandbox`) may displace a live lightweight
+        discover agent. Other agents are rejected if a seat is already taken.
         """
+        old_ws = None
         async with self._lock:
             pair = self._sessions.get(session_id)
             if pair is None:
@@ -153,19 +179,41 @@ class SessionManager:
             if pair.agent_ws is not None and (
                 pair.is_routing or pair.status == SessionStatus.ACTIVE
             ):
-                logger.warning(
-                    "session.agent_rejected_already_active",
-                    session_id=session_id,
-                )
-                return None
+                if agent_kind == "sandbox":
+                    old_ws = pair.agent_ws
+                    pair.agent_ws = None
+                    pair.is_routing = False
+                    logger.warning(
+                        "session.agent_displaced_by_sandbox",
+                        session_id=session_id,
+                    )
+                else:
+                    logger.warning(
+                        "session.agent_rejected_already_active",
+                        session_id=session_id,
+                    )
+                    return None
             pair.agent_ws = ws
+            if agent_kind == "sandbox":
+                pair.prefer_sandbox = True
             pair.touch()
             if pair.browser_ws is not None:
                 pair.status = SessionStatus.ACTIVE
             else:
                 pair.status = SessionStatus.WAITING_CLIENT
-            logger.info("session.agent_registered", session_id=session_id)
-            return pair
+            logger.info(
+                "session.agent_registered",
+                session_id=session_id,
+                agent_kind=agent_kind or "default",
+            )
+            result = pair
+
+        if old_ws is not None:
+            try:
+                await old_ws.close(code=4000)
+            except Exception:
+                pass
+        return result
 
     async def close_session(self, session_id: str) -> bool:
         """Mark a session as closed and clear its WebSocket references."""

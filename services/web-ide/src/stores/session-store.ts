@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { AcpClient } from "@/lib/acp-client";
 import {
   listSessions as listRelaySessions,
+  getSession,
   getSessionHistory,
   deleteSession as deleteRelaySession,
   updateSessionTitle,
@@ -37,6 +38,9 @@ interface SessionState {
   isConnected: boolean;
   /** Session id the current WebSocket is actually paired with on the relay */
   connectedSessionId: string | null;
+  /** ACP initialize + session/new completed for connectedSessionId */
+  acpReady: boolean;
+  agentConnected: boolean;
   sessions: SessionInfo[];
   activeSessionId: string | null;
   messages: Message[];
@@ -64,6 +68,28 @@ let connectEpoch = 0;
 /** Ignore stale history responses when switching sessions quickly */
 let historyEpoch = 0;
 
+const AGENT_WAIT_MS = 120_000;
+const AGENT_POLL_MS = 2_000;
+
+async function waitForAgentConnected(
+  sessionId: string,
+  epoch: number,
+  isStale: () => boolean,
+): Promise<boolean> {
+  const deadline = Date.now() + AGENT_WAIT_MS;
+  while (Date.now() < deadline) {
+    if (isStale() || epoch !== connectEpoch) return false;
+    try {
+      const s = await getSession(sessionId);
+      if (s.agent_connected) return true;
+    } catch {
+      // Relay may briefly 404 while session is creating
+    }
+    await new Promise((r) => setTimeout(r, AGENT_POLL_MS));
+  }
+  return false;
+}
+
 function defaultWsUrl(): string {
   if (typeof window === "undefined") return "";
   const stored = localStorage.getItem("webuild_ws_url");
@@ -82,6 +108,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   client: null,
   isConnected: false,
   connectedSessionId: null,
+  acpReady: false,
+  agentConnected: false,
   sessions: [],
   activeSessionId: null,
   messages: [],
@@ -106,7 +134,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const existing = get().client;
     if (existing) {
       existing.disconnect();
-      set({ client: null, isConnected: false, connectedSessionId: null });
+      set({
+        client: null,
+        isConnected: false,
+        connectedSessionId: null,
+        acpReady: false,
+        agentConnected: false,
+      });
     }
 
     const client = new AcpClient();
@@ -167,7 +201,25 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
     client.onDisconnect(() => {
       if (get().client === client) {
-        set({ isConnected: false, connectedSessionId: null });
+        set({
+          isConnected: false,
+          connectedSessionId: null,
+          acpReady: false,
+          agentConnected: false,
+        });
+      }
+    });
+
+    // Sandbox YOLO: auto-approve any leftover permission prompts so tools
+    // never hang if the agent still asks the client.
+    client.onPermissionRequest((req) => {
+      const allow =
+        req.options.find((o) => /allow|approve|yes|once/i.test(o.optionId) || /allow|approve/i.test(o.name))
+        ?? req.options[0];
+      if (allow) {
+        client.respondPermission(req.id, allow.optionId);
+      } else {
+        client.rejectPermission(req.id);
       }
     });
 
@@ -183,18 +235,49 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       isConnected: true,
       connectedSessionId: sessionId,
       activeSessionId: sessionId,
+      acpReady: false,
+      agentConnected: false,
     });
     get().upsertSession({
       sessionId,
       status: "active",
       sandboxId: sessionId,
     });
+
+    // Wait for ACS sandbox agent, then run ACP initialize + session/new
+    const agentOk = await waitForAgentConnected(
+      sessionId,
+      epoch,
+      () => get().client !== client,
+    );
+    if (epoch !== connectEpoch || get().client !== client) return;
+
+    set({ agentConnected: agentOk });
+    if (!agentOk) {
+      console.warn("Agent not connected within timeout; ACP handshake deferred");
+      return;
+    }
+
+    try {
+      await client.ensureAcpSession("/workspace", sessionId);
+      if (epoch !== connectEpoch || get().client !== client) return;
+      set({ acpReady: true });
+    } catch (e) {
+      console.error("ACP handshake failed:", e);
+      set({ acpReady: false });
+    }
   },
 
   disconnect: () => {
     connectEpoch++;
     get().client?.disconnect();
-    set({ client: null, isConnected: false, connectedSessionId: null });
+    set({
+      client: null,
+      isConnected: false,
+      connectedSessionId: null,
+      acpReady: false,
+      agentConnected: false,
+    });
   },
 
   createSession: async (cwd) => {
@@ -203,6 +286,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { sessionId } = await client.newSession(cwd);
     set((s) => ({
       activeSessionId: sessionId,
+      acpReady: true,
       sessions: s.sessions.some((x) => x.sessionId === sessionId)
         ? s.sessions
         : [...s.sessions, { sessionId, status: "active", sandboxId: sessionId }],
@@ -213,12 +297,30 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   sendMessage: async (text) => {
-    const { client, activeSessionId, connectedSessionId, isConnected } = get();
+    const { client, activeSessionId, connectedSessionId, isConnected, acpReady, agentConnected } =
+      get();
     if (!client || !activeSessionId) {
       throw new Error("Not connected to a session");
     }
     if (!isConnected || connectedSessionId !== activeSessionId) {
       throw new Error("WebSocket is not paired with this session yet — wait for Connected");
+    }
+    if (!agentConnected) {
+      // One more poll in case agent just came up
+      try {
+        const s = await getSession(activeSessionId);
+        if (!s.agent_connected) {
+          throw new Error("Sandbox agent is not connected yet — wait until status is Running");
+        }
+        set({ agentConnected: true });
+      } catch (e) {
+        if (e instanceof Error && e.message.includes("Sandbox agent")) throw e;
+        throw new Error("Sandbox agent is not connected yet — wait until status is Running");
+      }
+    }
+    if (!acpReady && !client.isAcpReady()) {
+      await client.ensureAcpSession("/workspace", activeSessionId);
+      set({ acpReady: true });
     }
 
     const needsTitle = !get().sessions.find((s) => s.sessionId === activeSessionId)?.title;

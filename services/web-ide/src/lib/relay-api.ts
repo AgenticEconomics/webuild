@@ -39,6 +39,7 @@ export async function createSession(opts?: {
   cwd?: string
   title?: string
   model?: string
+  preferSandbox?: boolean
 }): Promise<RelaySession> {
   const res = await fetch(`${RELAY_BASE}/sessions`, {
     method: 'POST',
@@ -46,6 +47,7 @@ export async function createSession(opts?: {
     body: JSON.stringify({
       title: opts?.title ?? null,
       model: opts?.model ?? null,
+      prefer_sandbox: opts?.preferSandbox ?? true,
     }),
   })
   if (!res.ok) throw new Error(`Failed to create session: ${res.status}`)

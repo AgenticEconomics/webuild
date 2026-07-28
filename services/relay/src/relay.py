@@ -102,6 +102,7 @@ async def websocket_endpoint(
     role: str = Query(default="browser"),
     token: str = Query(default=""),
     user_id: str = Query(default=""),
+    agent_kind: str = Query(default=""),
 ) -> None:
     """Main WebSocket endpoint for ACP relay.
 
@@ -110,6 +111,7 @@ async def websocket_endpoint(
       - role: "browser" (client) or "agent"
       - token: Bearer token (alternative to Authorization header)
       - user_id: optional real user id for internal sandbox agents
+      - agent_kind: "sandbox" for ACS full webuild (may displace lightweight agent)
     """
     assert _session_manager is not None, "relay not initialized"
     assert _router is not None, "relay not initialized"
@@ -229,7 +231,11 @@ async def websocket_endpoint(
             if _store:
                 await _store.update_status(session_id, "waiting_client")
 
-        pair = await _session_manager.register_agent(session_id, ws)
+        pair = await _session_manager.register_agent(
+            session_id,
+            ws,
+            agent_kind=agent_kind.strip() or None,
+        )
         if pair is None:
             await ws.send_text(
                 make_error_response(

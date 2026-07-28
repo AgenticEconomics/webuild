@@ -112,6 +112,8 @@ app.include_router(ws_router)
 class CreateSessionRequest(BaseModel):
     title: str | None = Field(default=None, max_length=256)
     model: str | None = Field(default=None, max_length=64)
+    # Phase V: reserve the agent seat for ACS sandbox (skip lightweight discover)
+    prefer_sandbox: bool = False
 
 
 class UpdateSessionRequest(BaseModel):
@@ -165,13 +167,15 @@ async def health_check():
 async def discover_sessions():
     """List sessions that have a browser connected but no agent.
 
-    Internal endpoint used by the agent service to find sessions to join.
-    No authentication required (internal network only).
+    Internal endpoint used by the lightweight agent service to find sessions.
+    Sessions marked prefer_sandbox are omitted — they wait for the ACS webuild agent.
     """
     assert _session_manager is not None
     result = []
     async with _session_manager._lock:
         for sid, pair in _session_manager._sessions.items():
+            if pair.prefer_sandbox:
+                continue
             if pair.browser_ws is not None and pair.agent_ws is None:
                 result.append({
                     "session_id": sid,
@@ -205,6 +209,7 @@ async def create_session(
         session_id=session_id,
         title=body.title,
         model=body.model,
+        prefer_sandbox=body.prefer_sandbox,
     )
 
     # Persist if store is available

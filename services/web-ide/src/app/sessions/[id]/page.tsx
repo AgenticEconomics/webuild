@@ -8,6 +8,7 @@ import { LocaleSwitcher } from '@/components/locale-switcher'
 import { useI18n } from '@/lib/i18n'
 import { useSessionStore, type Message, type ToolCall, defaultWsUrl } from '@/stores/session-store'
 import { getSandbox, type Sandbox } from '@/lib/gateway-api'
+import { MessageContent } from '@/components/message-content'
 
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user'
@@ -23,7 +24,7 @@ function MessageBubble({ message }: { message: Message }) {
           ? 'bg-console-blue text-white'
           : 'bg-console-surface text-console-ink border border-console-border shadow-console-sm'
       }`}>
-        <div className="whitespace-pre-wrap break-words">{message.content || '...'}</div>
+        <MessageContent content={message.content || ''} plain={isUser} />
       </div>
     </div>
   )
@@ -54,6 +55,7 @@ function ToolBadge({ tc }: { tc: ToolCall }) {
 export default function SessionPage({ params }: { params: { id: string } }) {
   const {
     messages, toolCalls, activeSessionId, isConnected, connectedSessionId,
+    acpReady, agentConnected,
     connect, sendMessage, cancelCurrent, setActiveSession, upsertSession, loadHistory, historyLoading,
   } = useSessionStore()
   const { t } = useI18n()
@@ -128,15 +130,16 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   }, [params.id])
 
   useEffect(() => {
-    if (!isConnected || connectedSessionId !== params.id || initialPromptSent.current) return
+    // Wait for ACP handshake (initialize + session/new) — not just WS open
+    if (!acpReady || connectedSessionId !== params.id || initialPromptSent.current) return
     const key = `initial_prompt_${params.id}`
     const prompt = sessionStorage.getItem(key)
     if (prompt) {
       sessionStorage.removeItem(key)
       initialPromptSent.current = true
-      setTimeout(() => handleSend(prompt), 1000)
+      handleSend(prompt)
     }
-  }, [params.id, isConnected, connectedSessionId])
+  }, [params.id, acpReady, connectedSessionId])
 
   const handleSend = async (text?: string) => {
     const msg = text || input.trim()
@@ -164,7 +167,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
 
   const sandboxProvisioning = sandbox?.status === 'creating'
   const paired = isConnected && connectedSessionId === params.id
-  const canSend = paired && !sandboxProvisioning
+  const canSend = paired && acpReady && !sandboxProvisioning
 
   return (
     <div className="flex h-screen">
@@ -200,15 +203,21 @@ export default function SessionPage({ params }: { params: { id: string } }) {
             <LocaleSwitcher />
             <div
               className={`flex items-center gap-1.5 text-[11px] ${
-                paired ? 'text-console-success' : 'text-console-danger'
+                acpReady ? 'text-console-success' :
+                paired ? 'text-console-warn' : 'text-console-danger'
               }`}
             >
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
-                  paired ? 'bg-console-success animate-pulse-dot' : 'bg-console-danger'
+                  acpReady ? 'bg-console-success animate-pulse-dot' :
+                  paired ? 'bg-console-warn animate-pulse-dot' : 'bg-console-danger'
                 }`}
               />
-              {paired ? t('connected') : t('disconnected')}
+              {acpReady
+                ? t('connected')
+                : paired
+                  ? (agentConnected ? 'Handshaking…' : 'Waiting for agent…')
+                  : t('disconnected')}
             </div>
           </div>
         </header>
@@ -217,6 +226,15 @@ export default function SessionPage({ params }: { params: { id: string } }) {
           <div className="px-5 py-2 border-b border-console-border bg-console-warn-soft text-xs text-console-warn flex items-center gap-2">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
             Provisioning linked sandbox… Agent will join when ready.
+          </div>
+        )}
+
+        {paired && !acpReady && !sandboxProvisioning && (
+          <div className="px-5 py-2 border-b border-console-border bg-console-warn-soft text-xs text-console-warn flex items-center gap-2">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            {agentConnected
+              ? 'Agent connected — finishing ACP handshake…'
+              : 'Waiting for sandbox agent to connect…'}
           </div>
         )}
 

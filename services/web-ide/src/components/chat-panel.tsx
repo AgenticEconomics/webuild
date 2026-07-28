@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useSessionStore, type Message } from "@/stores/session-store";
+import { MessageContent } from "@/components/message-content";
 
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === "user";
@@ -15,7 +16,7 @@ function MessageBubble({ message }: { message: Message }) {
         <div className="text-xs opacity-50 mb-1">
           {isUser ? "You" : "WeBuild"}
         </div>
-        <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        <MessageContent content={message.content} plain={isUser} />
       </div>
     </div>
   );
