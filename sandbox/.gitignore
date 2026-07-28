@@ -1,2 +1,4 @@
 # Copied from CI dist/ or local release binary before `docker build`
 webuild-linux-x86_64
+# Phase VI: copied from third_party/agent-skills before `docker build`
+/agent-skills/

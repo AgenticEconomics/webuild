@@ -206,6 +206,8 @@ build-images:
         exit 1
       fi
       cp dist/webuild-linux-x86_64 sandbox/webuild-linux-x86_64
+      rm -rf sandbox/agent-skills
+      cp -a third_party/agent-skills sandbox/agent-skills
       docker build -t "$ACR_REGISTRY/sandbox:$CI_COMMIT_SHA" \
         -t "$ACR_REGISTRY/sandbox:latest" \
         sandbox/

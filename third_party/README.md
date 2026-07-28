@@ -32,6 +32,15 @@ xai-webuild-mermaid
               └── ordered_hashmap
 ```
 
+## Agent skills marketplace (Phase VI)
+
+| Path | Upstream | Notes |
+|------|----------|-------|
+| [`agent-skills/`](./agent-skills/) | [AgenticEconomics/skills](https://github.com/AgenticEconomics/skills) | WeBuild layout (`default-skills/`); see [`agent-skills/NOTICE.md`](./agent-skills/NOTICE.md) |
+
+Not a Rust crate — skill folders + marketplace metadata synced into
+`~/.webuild/marketplaces/agent-skills` at agent startup.
+
 ## Notices and ancestry
 
 - **[`NOTICE`](./NOTICE)** — short index of the crates above (names, licenses,

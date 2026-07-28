@@ -38,9 +38,13 @@ COPY webuild-linux-x86_64 /usr/local/bin/webuild
 RUN chmod +x /usr/local/bin/webuild \
     && ln -sf /usr/local/bin/webuild /usr/local/bin/agent
 
+# Phase VI: vendored AgenticEconomics/skills (WeBuild marketplace layout)
+COPY agent-skills /opt/webuild/agent-skills
+ENV WEBUILD_AGENT_SKILLS_ROOT=/opt/webuild/agent-skills
+
 # Workspace directory (ubuntu user UID/GID 1000)
 RUN mkdir -p /workspace /home/ubuntu/.webuild \
-    && chown -R 1000:1000 /workspace /home/ubuntu
+    && chown -R 1000:1000 /workspace /home/ubuntu /opt/webuild
 
 WORKDIR /workspace
 

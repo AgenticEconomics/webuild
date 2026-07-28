@@ -57,6 +57,16 @@ pub fn install_from_marketplace(
             detail: format!("invalid marketplace plugin path: {e}"),
         })?;
     let plugin_relative_path = plugin_relative_path.as_str();
+
+    // Root-level SKILL.md layouts (e.g. `default-skills/`) need a synthetic
+    // plugin.json *before* discover — otherwise `install_from_source` rejects
+    // the tree as having no plugins.
+    ensure_manifest_for_root_skills(
+        &plugin_dir,
+        plugin_relative_path,
+        &provenance.source_display_name,
+    );
+
     let source = InstallSource::Local {
         path: plugin_dir,
         subdir: None,
@@ -69,9 +79,7 @@ pub fn install_from_marketplace(
             let repo_key = result.repo_key.clone();
             let installed_path = registry.install_dir().join(&repo_key);
 
-            // If the installed dir has no manifest but has SKILL.md files
-            // at the root level (e.g. default-skills/), write a synthetic
-            // plugin.json so the plugin discovery system finds the skills.
+            // Re-ensure on the installed copy (idempotent if already present).
             ensure_manifest_for_root_skills(
                 &installed_path,
                 plugin_relative_path,

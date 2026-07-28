@@ -137,6 +137,9 @@ fn init_process(cfg: &AgentConfig, auth_manager: &AuthManager) {
         let webuild_home = crate::util::webuild_home::webuild_home();
         crate::builtin::extract_bundled_files(&webuild_home);
 
+        // Phase VI: sync vendored AgenticEconomics/skills and install default-skills.
+        crate::agent_skills::ensure_agent_skills(&webuild_home);
+
         // Auto-register is gated (default off; env/remote settings enables). Kept out
         // of extract_bundled_files so the gate can read the resolved
         // remote_settings, which resolve_config has populated by now.

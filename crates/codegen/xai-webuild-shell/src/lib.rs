@@ -9,6 +9,7 @@ pub(crate) use xai_webuild_telemetry::unified_log;
 pub use xai_tracing_macros::{teprintln, timed, tprintln};
 pub mod active_sessions;
 pub mod agent;
+pub mod agent_skills;
 pub mod auth;
 pub mod builtin;
 pub mod bundle;

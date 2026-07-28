@@ -1,0 +1,13 @@
+{
+  "name": "webuild-agent-skills",
+  "owner": {
+    "name": "WeBuild"
+  },
+  "metadata": {
+    "description": "Agent skills imported from AgenticEconomics/skills (Anthropic examples)",
+    "version": "1.0.0",
+    "upstream": "https://github.com/AgenticEconomics/skills",
+    "upstream_commit": "57546260929473d4e0d1c1bb75297be2fdfa1949"
+  },
+  "plugins": []
+}

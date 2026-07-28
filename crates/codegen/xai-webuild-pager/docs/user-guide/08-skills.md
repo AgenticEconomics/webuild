@@ -203,6 +203,17 @@ WeBuild ships with built-in skills and extracts them to `~/.webuild/skills/` on 
 
 Skills can also come from plugins. When you install a plugin that includes skills, they appear alongside your user and project skills. `webuild inspect` labels each plugin-provided skill with its source as `plugin: <name>`.
 
+### WeBuild Agent Skills (Phase VI)
+
+On startup WeBuild also syncs the vendored marketplace under
+`third_party/agent-skills` (sandbox: `/opt/webuild/agent-skills`) into
+`~/.webuild/marketplaces/agent-skills` and auto-installs its `default-skills`
+plugin. That pack includes document skills (docx/pdf/pptx/xlsx), design,
+MCP builder, webapp testing, and related example skills imported from
+[AgenticEconomics/skills](https://github.com/AgenticEconomics/skills). See
+`docs/phase-vi-skills-import-plan.md` and `third_party/agent-skills/NOTICE.md`
+for layout and license notes.
+
 See the [Plugins guide](09-plugins.md) for more on installing plugins that provide skills.
 
 ---

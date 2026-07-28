@@ -1,0 +1,6 @@
+{
+  "name": "webuild-agent-skills-default",
+  "description": "Agent skills imported from AgenticEconomics/skills (Anthropic examples)",
+  "version": "1.0.0",
+  "skills": "./"
+}

@@ -10,6 +10,10 @@ use std::path::{Path, PathBuf};
 const RG_VER: &str = "15.0.0";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Phase VI: expose vendored agent-skills path when building from the monorepo.
+    // Sandbox images use /opt/webuild/agent-skills at runtime instead.
+    emit_agent_skills_src_env();
+
     // Only bundle in release builds to avoid slowing down cargo check.
     println!("cargo:rerun-if-env-changed=WEBUILD_SHELL_BUNDLE_RG_PATH");
     println!("cargo:rerun-if-env-changed=WEBUILD_SHELL_RG_DOWNLOAD_BASE");
@@ -163,4 +167,25 @@ fn is_bazel_build(manifest_dir: &Path) -> bool {
         || env::var_os("BAZEL_OUTPUT_BASE").is_some()
         || manifest_dir_str.contains("/execroot/")
         || manifest_dir_str.contains("/bazel-out/")
+}
+
+/// Emit `WEBUILD_AGENT_SKILLS_SRC` when `third_party/agent-skills` exists.
+fn emit_agent_skills_src_env() {
+    let manifest_dir = match env::var("CARGO_MANIFEST_DIR") {
+        Ok(d) => PathBuf::from(d),
+        Err(_) => return,
+    };
+    let skills = manifest_dir
+        .join("../../..")
+        .join("third_party")
+        .join("agent-skills");
+    println!("cargo:rerun-if-changed={}", skills.join("SOURCE.md").display());
+    if skills.join("default-skills").is_dir()
+        && let Ok(canonical) = skills.canonicalize()
+    {
+        println!(
+            "cargo:rustc-env=WEBUILD_AGENT_SKILLS_SRC={}",
+            canonical.display()
+        );
+    }
 }

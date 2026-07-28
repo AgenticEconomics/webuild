@@ -1098,6 +1098,19 @@ fn add_marketplace_source(
     crate::util::config::atomic_write_string(config_path, &doc.to_string())
 }
 
+/// Register the Phase VI local agent-skills marketplace source (idempotent).
+pub fn add_agent_skills_marketplace_source(
+    config_path: &std::path::Path,
+    marketplace_path: &std::path::Path,
+) -> std::io::Result<()> {
+    add_marketplace_source(
+        config_path,
+        crate::agent_skills::AGENT_SKILLS_SOURCE_NAME,
+        &crate::plugin::MarketplaceAddInput::LocalPath(marketplace_path.to_path_buf()),
+        false,
+    )
+}
+
 /// Remove a marketplace source from `~/.webuild/config.toml` and uninstall all
 /// plugins that were installed from it.
 async fn handle_remove_source(source_url_or_path: &str) -> xai_hooks_plugins_types::ActionOutcome {
