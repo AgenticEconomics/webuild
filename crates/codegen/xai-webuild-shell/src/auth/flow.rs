@@ -1050,7 +1050,7 @@ mod tests {
         f()
     }
 
-    // A grok.com first-party (x.ai-issuer) OIDC session — `is_xai_auth()` true.
+    // A webuild.datoms.cn first-party (x.ai-issuer) OIDC session — `is_xai_auth()` true.
     fn oidc_session(key: &str, refresh: Option<&str>) -> WeBuildAuth {
         WeBuildAuth {
             key: key.into(),

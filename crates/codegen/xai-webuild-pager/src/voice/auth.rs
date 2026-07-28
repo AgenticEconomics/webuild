@@ -36,7 +36,7 @@ impl VoiceAuthProvider for AuthManagerVoiceAuth {
 
 /// Build the voice bearer provider from the connection's `AuthManager`.
 ///
-/// Works for every auth method: OAuth / grok.com / OIDC session tokens and
+/// Works for every auth method: OAuth / webuild.datoms.cn / OIDC session tokens and
 /// `XAI_API_KEY` / per-model BYOK keys.
 pub fn build_voice_auth(auth_manager: Arc<xai_webuild_shell::auth::AuthManager>) -> SharedVoiceAuth {
     Arc::new(AuthManagerVoiceAuth(

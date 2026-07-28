@@ -2394,7 +2394,7 @@ async fn cached_token_fallthrough_prefers_api_key_for_deployment_key() {
     );
 }
 /// Forced-IdP deployment: even with `XAI_API_KEY` present, the admin kill
-/// switch keeps the fallthrough on interactive `grok.com` (api-key auth is
+/// switch keeps the fallthrough on interactive `webuild.datoms.cn` (api-key auth is
 /// neither advertised nor an eligible fallthrough).
 #[tokio::test(flavor = "current_thread")]
 #[serial_test::serial]
@@ -2411,11 +2411,11 @@ async fn cached_token_fallthrough_respects_kill_switch() {
             .map(|id| id.0.as_ref()),
         Some(WEBUILD_COM_METHOD_ID),
         "disable_api_key_auth must keep the cached_token fallthrough on \
-         interactive grok.com so XAI_API_KEY can't bypass forced IdP login",
+         interactive webuild.datoms.cn so XAI_API_KEY can't bypass forced IdP login",
     );
 }
 /// No advertiseable credentials at all (no env key, no kill switch): the user
-/// genuinely needs to log in, so the fallthrough is interactive `grok.com`.
+/// genuinely needs to log in, so the fallthrough is interactive `webuild.datoms.cn`.
 #[tokio::test(flavor = "current_thread")]
 #[serial_test::serial]
 async fn cached_token_fallthrough_falls_to_webuild_com_without_credentials() {
@@ -2433,7 +2433,7 @@ async fn cached_token_fallthrough_falls_to_webuild_com_without_credentials() {
             .as_ref()
             .map(|id| id.0.as_ref()),
         Some(WEBUILD_COM_METHOD_ID),
-        "no API-key creds and no kill switch -> interactive grok.com login",
+        "no API-key creds and no kill switch -> interactive webuild.datoms.cn login",
     );
 }
 /// Verifies the 4-state matrix of `(disable_zdr_incompatible_tools, zdr_video_output_s3)`:

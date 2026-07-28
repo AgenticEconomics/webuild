@@ -626,7 +626,7 @@ pub enum ButtonAction {
     ReloadSkills,
     /// Refresh MCP server list (re-fetch from shell).
     RefreshMcpList,
-    /// Open grok.com connectors page (MCP tab: press `o`).
+    /// Open webuild.datoms.cn connectors page (MCP tab: press `o`).
     OpenManagedConnectors,
     /// Update (fetch latest from source) the selected plugin.
     UpdateSelectedPlugin,

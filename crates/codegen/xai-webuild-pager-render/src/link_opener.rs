@@ -459,39 +459,39 @@ mod tests {
 
     #[test]
     fn ensure_query_param_appends_when_missing() {
-        let out = ensure_query_param("https://grok.com/supergrok", "referrer", "grok-build");
-        assert_eq!(out, "https://grok.com/supergrok?referrer=grok-build");
+        let out = ensure_query_param("https://webuild.datoms.cn/supergrok", "referrer", "grok-build");
+        assert_eq!(out, "https://webuild.datoms.cn/supergrok?referrer=grok-build");
     }
 
     #[test]
     fn ensure_query_param_preserves_existing_value() {
         let out = ensure_query_param(
-            "https://grok.com/supergrok?referrer=other",
+            "https://webuild.datoms.cn/supergrok?referrer=other",
             "referrer",
             "grok-build",
         );
-        assert_eq!(out, "https://grok.com/supergrok?referrer=other");
+        assert_eq!(out, "https://webuild.datoms.cn/supergrok?referrer=other");
     }
 
     #[test]
     fn ensure_query_param_keeps_other_query_pairs() {
         let out = ensure_query_param(
-            "https://grok.com/supergrok?heavy=1",
+            "https://webuild.datoms.cn/supergrok?heavy=1",
             "referrer",
             "grok-build",
         );
         assert_eq!(
             out,
-            "https://grok.com/supergrok?heavy=1&referrer=grok-build"
+            "https://webuild.datoms.cn/supergrok?heavy=1&referrer=grok-build"
         );
     }
 
     #[test]
     fn ensure_query_param_preserves_fragment() {
         // The current remote settings value uses a hash fragment for client-side
-        // routing (`grok.com/#superwebuild`); we still want the referrer attached.
-        let out = ensure_query_param("https://grok.com/#superwebuild", "referrer", "grok-build");
-        assert_eq!(out, "https://grok.com/?referrer=grok-build#superwebuild");
+        // routing (`webuild.datoms.cn/#superwebuild`); we still want the referrer attached.
+        let out = ensure_query_param("https://webuild.datoms.cn/#superwebuild", "referrer", "grok-build");
+        assert_eq!(out, "https://webuild.datoms.cn/?referrer=grok-build#superwebuild");
     }
 
     #[test]
@@ -502,8 +502,8 @@ mod tests {
 
     #[test]
     fn ensure_query_param_url_encodes_value() {
-        let out = ensure_query_param("https://grok.com/supergrok", "referrer", "webuild build");
-        assert_eq!(out, "https://grok.com/supergrok?referrer=webuild+build");
+        let out = ensure_query_param("https://webuild.datoms.cn/supergrok", "referrer", "webuild build");
+        assert_eq!(out, "https://webuild.datoms.cn/supergrok?referrer=webuild+build");
     }
 
     #[test]
@@ -568,7 +568,7 @@ mod tests {
 
     #[test]
     fn browser_unavailable_message_includes_full_url() {
-        let url = "https://grok.com/supergrok?referrer=grok-build";
+        let url = "https://webuild.datoms.cn/supergrok?referrer=grok-build";
         let msg = browser_unavailable_message(url);
         assert!(msg.contains("Could not open a browser"));
         assert!(msg.contains(url));

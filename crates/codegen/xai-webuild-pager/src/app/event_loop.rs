@@ -648,11 +648,11 @@ pub(crate) async fn run(
                 crate::acp::AuthStartMode::Command => super::app_view::AuthMode::Command,
             };
         } else {
-            // --force-login: find the grok.com method from the advertised list
+            // --force-login: find the webuild.datoms.cn method from the advertised list
             let webuild_com = connection
                 .auth_methods
                 .iter()
-                .find(|m| m.id().0.as_ref() == "grok.com");
+                .find(|m| m.id().0.as_ref() == "webuild.datoms.cn");
             if let Some(method) = webuild_com {
                 app.login_label = Some(method.name().to_string());
                 app.login_method_id = Some(method.id().clone());
@@ -668,7 +668,7 @@ pub(crate) async fn run(
                     super::app_view::AuthMode::Pending
                 };
             } else {
-                // No grok.com method available, use the first method as fallback
+                // No webuild.datoms.cn method available, use the first method as fallback
                 let first = &connection.auth_methods[0];
                 app.login_label = Some(first.name().to_string());
                 app.login_method_id = Some(first.id().clone());
@@ -680,7 +680,7 @@ pub(crate) async fn run(
         // by reusing dispatch_login. Effects are stashed and drained after
         // the initial render so the user sees the auth UI right away.
         // Empty auth_methods (preferred_method pin with no credentials) is
-        // fail-closed: do not invent grok.com / auto-start OIDC.
+        // fail-closed: do not invent webuild.datoms.cn / auto-start OIDC.
         tracing::info!(
             method_id = ?app.login_method_id,
             methods_empty = connection.auth_methods.is_empty(),

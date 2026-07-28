@@ -267,7 +267,7 @@ fn write_truncated(buf: &mut String, s: &str, max: usize) {
 /// the frame pipeline.
 ///
 /// Control characters are stripped here: title parts include remote-sourced
-/// strings (e.g. grok.com conversation titles), which must not terminate the
+/// strings (e.g. webuild.datoms.cn conversation titles), which must not terminate the
 /// OSC sequence early or inject escapes into the terminal.
 fn build_title_escape(title: &str) -> String {
     let sanitized: String = title.chars().filter(|c| !c.is_control()).collect();

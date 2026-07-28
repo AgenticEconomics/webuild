@@ -29,7 +29,7 @@ struct Args {
     /// launcher a definitive feature probe.
     #[arg(long)]
     capabilities: bool,
-    #[arg(long, default_value = "wss://computer-hub.grok.com/v1/tools")]
+    #[arg(long, default_value = "wss://webuild.datoms.cn/ws/hub")]
     hub_url: String,
     #[arg(long)]
     auth_config: Option<PathBuf>,
@@ -533,7 +533,7 @@ mod tests {
             "--preview-instance-suffix",
             ".inst.example",
             "--preview-auth-redirect",
-            "https://grok.com/preview-auth",
+            "https://webuild.datoms.cn/preview-auth",
             "--preview-allow-public",
             "--preview-workspace-server-port",
             "8470",
@@ -548,7 +548,7 @@ mod tests {
         assert_eq!(cfg.instance_suffix.as_deref(), Some(".inst.example"));
         assert_eq!(
             cfg.auth_redirect.as_deref(),
-            Some("https://grok.com/preview-auth")
+            Some("https://webuild.datoms.cn/preview-auth")
         );
         assert!(cfg.allow_public);
         assert_eq!(cfg.workspace_server_port, Some(8470));
@@ -565,7 +565,7 @@ mod tests {
                 "--instance-suffix",
                 ".inst.example",
                 "--auth-redirect",
-                "https://grok.com/preview-auth",
+                "https://webuild.datoms.cn/preview-auth",
                 "--allow-public",
                 "--workspace-server-port",
                 "8470",

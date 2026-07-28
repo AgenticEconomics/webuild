@@ -24,7 +24,7 @@ pub const RATE_LIMITED_ERROR_CODE: i32 = -32003;
 pub const RATE_LIMITED_USER_MESSAGE_OAUTH: &str =
     "You\u{2019}ve hit the rate limit for your plan. Upgrade your account or try again later.";
 
-/// API key / team rate-limit copy. Personal grok.com upgrades do not raise API
+/// API key / team rate-limit copy. Personal webuild.datoms.cn upgrades do not raise API
 /// team limits; admins purchase credits or a higher spend-based tier.
 /// Provider / team rate-limit copy for API-key auth.
 pub const RATE_LIMITED_USER_MESSAGE_API_KEY: &str = "You\u{2019}ve hit an API rate limit. Check your provider quota (e.g. DashScope) or try again later. Docs: https://git.jarvikheart.cn/jerryzhang/webuild#readme";
@@ -65,7 +65,7 @@ pub fn is_free_usage_exhausted_error(detail: &str) -> bool {
 /// 1. Free-usage well-known code → [`FREE_USAGE_USER_MESSAGE`] (OAuth product paywall).
 /// 2. Non-empty body that pushes a **personal** WeBuild subscription, when the
 ///    caller is on **API key** auth → [`RATE_LIMITED_USER_MESSAGE_API_KEY`]
-///    (team credits / console rate-limit tiers; not grok.com SuperWeBuild).
+///    (team credits / console rate-limit tiers; not webuild.datoms.cn SuperWeBuild).
 /// 3. Any other non-empty body → shown as-is (capacity, team RPS limits, etc.).
 /// 4. Empty body → [`rate_limited_user_message`].
 ///
@@ -88,12 +88,12 @@ pub fn format_rate_limited_user_message(
 }
 
 /// IC sometimes reuses OAuth free-tier upsell copy on 429s ("upgrade to a WeBuild
-/// subscription" / grok.com/supergrok). That is wrong for API-key / team auth:
+/// subscription" / webuild.datoms.cn/supergrok). That is wrong for API-key / team auth:
 /// higher limits come from credits and spend-based rate-limit tiers, not a
 /// personal SuperWeBuild plan.
 fn pushes_consumer_subscription_upsell(detail: &str) -> bool {
     let d = detail.to_ascii_lowercase();
-    d.contains("grok.com/supergrok") || d.contains("upgrade to a webuild subscription")
+    d.contains("webuild.datoms.cn/supergrok") || d.contains("upgrade to a webuild subscription")
 }
 
 /// Map a `SamplingError` to an ACP `Error` for client-facing responses.
@@ -418,7 +418,7 @@ mod tests {
              https://git.jarvikheart.cn/jerryzhang/webuild#readme";
         // OAuth keeps the IC body (personal plan upgrade is correct).
         assert_eq!(format_rate_limited_user_message(Some(rpm), false), rpm);
-        // API key must not push grok.com SuperWeBuild — team credits / rate-limit tiers.
+        // API key must not push webuild.datoms.cn SuperWeBuild — team credits / rate-limit tiers.
         assert_eq!(
             format_rate_limited_user_message(Some(rpm), true),
             RATE_LIMITED_USER_MESSAGE_API_KEY
@@ -427,7 +427,7 @@ mod tests {
             RATE_LIMITED_USER_MESSAGE_API_KEY
                 .contains("https://git.jarvikheart.cn/jerryzhang/webuild#readme")
         );
-        assert!(!RATE_LIMITED_USER_MESSAGE_API_KEY.contains("grok.com/supergrok"));
+        assert!(!RATE_LIMITED_USER_MESSAGE_API_KEY.contains("webuild.datoms.cn/supergrok"));
     }
 
     #[test]

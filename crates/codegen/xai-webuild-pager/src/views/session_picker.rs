@@ -157,7 +157,7 @@ impl SourceFilter {
 
     /// Returns `true` if a session with the given `source` string passes the filter.
     ///
-    /// grok.com conversations carry `source == "conversation"` and live remotely,
+    /// webuild.datoms.cn conversations carry `source == "conversation"` and live remotely,
     /// so they pass the `Remote` filter (and `All`) but not `Local`.
     pub fn matches(self, source: &str) -> bool {
         match self {
@@ -1193,7 +1193,7 @@ mod tests {
         assert!(!SourceFilter::Remote.matches("local"));
         assert!(!SourceFilter::Remote.matches("cursor"));
 
-        // grok.com conversations are remote: visible under All + Remote, not Local.
+        // webuild.datoms.cn conversations are remote: visible under All + Remote, not Local.
         assert!(SourceFilter::All.matches("conversation"));
         assert!(SourceFilter::Remote.matches("conversation"));
         assert!(!SourceFilter::Local.matches("conversation"));

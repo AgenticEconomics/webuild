@@ -646,7 +646,7 @@ pub struct MvpAgent {
     pub(crate) sampling_config: RefCell<SamplingConfig>,
     pub(crate) auth_manager: Arc<AuthManager>,
     pub(crate) models_manager: crate::agent::models::ModelsManager,
-    /// grok.com chat-product catalog (`/rest/modes`) for chat sessions; distinct
+    /// webuild.datoms.cn chat-product catalog (`/rest/modes`) for chat sessions; distinct
     /// from `models_manager` (the build `/v1/models` catalog).
     pub(crate) chat_modes: crate::agent::chat_modes::ChatModesManager,
     /// Single-flight guard for interactive login (device poll / loopback
@@ -2147,7 +2147,7 @@ impl MvpAgent {
         }
     }
     /// Spawn a best-effort bundle sync. Re-fires on every call site (init,
-    /// cached_token, grok.com/oidc); the cheap pre-checks below absorb repeats
+    /// cached_token, webuild.datoms.cn/oidc); the cheap pre-checks below absorb repeats
     /// so reconnects are cheap.
     ///
     /// Pre-spawn gating order (cheapest first, all synchronous):

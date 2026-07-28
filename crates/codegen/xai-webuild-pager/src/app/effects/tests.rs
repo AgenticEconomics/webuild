@@ -132,7 +132,7 @@ fn picker_drops_local_with_missing_updated_at() {
     let entries = parse_session_picker_entries(&payload);
     assert!(entries.is_empty(), "local rows still require a parseable updatedAt");
 }
-/// Untitled grok.com chats must stay listed, rendered as "Untitled".
+/// Untitled webuild.datoms.cn chats must stay listed, rendered as "Untitled".
 #[test]
 fn picker_keeps_untitled_conversation_as_untitled() {
     let payload = serde_json::json!(

@@ -299,7 +299,7 @@ impl acp::Agent for MvpAgent {
         } else {
             tracing::info!(
                 label = ? login_label, has_auth_provider,
-                "auth: advertising grok.com auth method",
+                "auth: advertising webuild.datoms.cn auth method",
             );
         }
         let preferred_method = self.cfg.borrow().webuild_com_config.preferred_method;
@@ -775,10 +775,10 @@ impl acp::Agent for MvpAgent {
                     let mut sampling_config = self.sampling_config.borrow_mut();
                     sampling_config.api_key = Some(auth.key.clone());
                     tracing::debug!(
-                        "auth: grok.com/oidc handler set api_key (SessionToken)"
+                        "auth: webuild.datoms.cn/oidc handler set api_key (SessionToken)"
                     );
                     xai_webuild_telemetry::unified_log::debug(
-                        "auth: grok.com/oidc handler set api_key (SessionToken)",
+                        "auth: webuild.datoms.cn/oidc handler set api_key (SessionToken)",
                         None,
                         None,
                     );

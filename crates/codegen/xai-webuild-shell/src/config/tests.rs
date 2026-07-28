@@ -2575,7 +2575,7 @@ fn enterprise_two_file_merge_routes_deployment_key_to_proxy() {
             r#"
 [endpoints]
 xai_api_base_url = "https://inference.acme-corp.example/xai/v1"
-cli_chat_proxy_base_url = "https://cli-chat-proxy.grok.com/v1"
+cli_chat_proxy_base_url = "https://cli-chat-proxy.webuild.datoms.cn/v1"
 
 [model.grok-build]
 base_url = "https://inference.acme-corp.example/xai/v1"
@@ -2616,7 +2616,7 @@ trace_upload_endpoint_url = "https://s3.acme-corp.example"
         .unwrap();
     assert_eq!(
         cfg.endpoints.resolve_managed_config_url(),
-        "https://cli-chat-proxy.grok.com/v1/deployment/config"
+        "https://cli-chat-proxy.webuild.datoms.cn/v1/deployment/config"
     );
     assert!(! cfg.endpoints.resolve_managed_config_url().contains("acme-corp"));
     assert_eq!(

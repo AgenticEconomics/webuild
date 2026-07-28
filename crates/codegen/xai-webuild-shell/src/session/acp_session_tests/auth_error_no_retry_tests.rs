@@ -426,7 +426,7 @@ async fn legacy_auth_hint_on_404_model_not_found() {
 fn unauthorized_401_error() -> xai_webuild_sampler::SamplingErrorInfo {
     xai_webuild_sampler::SamplingErrorInfo {
             kind: xai_webuild_sampler::SamplingErrorKind::Api,
-            message: "Unauthorized (401) from https://cli-chat-proxy.grok.com/v1/responses: {\"error\":\"Invalid or expired credentials (auth_kind=bearer, x_xai_token_auth=xai-webuild-cli, upstream=Unauthenticated, reason=no auth context)\"}".into(),
+            message: "Unauthorized (401) from https://webuild.datoms.cn/v1/responses: {\"error\":\"Invalid or expired credentials (auth_kind=bearer, x_xai_token_auth=xai-webuild-cli, upstream=Unauthenticated, reason=no auth context)\"}".into(),
             status_code: Some(401),
             is_retryable: false,
             retry_after_secs: None,

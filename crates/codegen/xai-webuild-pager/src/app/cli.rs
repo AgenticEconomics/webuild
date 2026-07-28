@@ -379,7 +379,7 @@ pub struct LeaderArgs {
     /// Keep the leader running after the last client disconnects.
     #[arg(long)]
     pub no_exit_on_disconnect: bool,
-    /// Defer the grok.com relay WebSocket until the first headless IPC client
+    /// Defer the webuild.datoms.cn relay WebSocket until the first headless IPC client
     /// registers. Without this flag the leader connects the relay eagerly at
     /// startup — required for bare leaders (headless remote env / systemd) that
     /// receive remote prompts *through* the relay. Passed by leaders auto-spawned

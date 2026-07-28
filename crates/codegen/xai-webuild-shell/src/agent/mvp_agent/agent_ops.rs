@@ -694,7 +694,7 @@ impl MvpAgent {
     /// Returns `SessionToken` when EITHER:
     ///   - `auth_manager` currently has a live (non-expired) credential, OR
     ///   - the active auth method is session-based (`cached_token`,
-    ///     `grok.com`, `oidc`) -- even if the in-memory token is currently
+    ///     `webuild.datoms.cn`, `oidc`) -- even if the in-memory token is currently
     ///     expired or missing.
     ///
     /// Returns `ApiKey` only when the auth method is BYOK (`xai.api_key`) or
@@ -710,7 +710,7 @@ impl MvpAgent {
         }
     }
     /// When `cached_token` cannot proceed, prefer non-interactive `xai.api_key`
-    /// iff `should_advertise_xai_api_key`; otherwise `grok.com`. Returns `None`
+    /// iff `should_advertise_xai_api_key`; otherwise `webuild.datoms.cn`. Returns `None`
     /// when `preferred_method` is pinned (fail-closed — no cross-method fallthrough).
     pub(super) fn cached_token_fallthrough_method_id(
         &self,
@@ -726,7 +726,7 @@ impl MvpAgent {
         Some(acp::AuthMethodId::new(id))
     }
     /// Shared exit for missing/expired/legacy `cached_token`: fall through with
-    /// `use_oauth` only when the target is interactive `grok.com`. When
+    /// `use_oauth` only when the target is interactive `webuild.datoms.cn`. When
     /// `preferred_method` is pinned, fail instead of falling through.
     pub(super) async fn authenticate_after_cached_token_unavailable(
         &self,
@@ -1234,7 +1234,7 @@ impl MvpAgent {
         );
         (id.clone(), new_config)
     }
-    /// Whether the current session is a personal grok.com account on a gated
+    /// Whether the current session is a personal webuild.datoms.cn account on a gated
     /// tier (free / X Basic). The Imagine tools stay advertised to the model but
     /// are flagged tier-restricted so they short-circuit at call time with the
     /// SuperWeBuild upsell prose (see `ImageGenConfig`/`VideoGenConfig`'s

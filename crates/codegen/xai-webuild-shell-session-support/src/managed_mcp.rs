@@ -291,7 +291,7 @@ impl ManagedMcpState {
 
     /// Clear every server's reactive re-auth cooldown. Invoked only by the
     /// proactive background refresh after a fresh fetch, so a parked (terminal)
-    /// connector re-authorized on grok.com can retry. The reactive path must NOT
+    /// connector re-authorized on webuild.datoms.cn can retry. The reactive path must NOT
     /// trigger this: a still-rejected token would reset its own attempt cap each
     /// attempt and loop instead of going terminal.
     pub fn clear_reauth_cooldowns(&mut self) {
@@ -685,13 +685,13 @@ pub async fn get_or_fetch_gateway_tool_catalog(
 
 /// Namespace prefix for managed MCP servers.
 ///
-/// Servers with names starting with this prefix are managed by grok.com —
+/// Servers with names starting with this prefix are managed by webuild.datoms.cn —
 /// their OAuth credentials are stored server-side.
 /// Servers without this prefix are user-managed (local keychain, config.toml headers, etc.).
 ///
 /// Examples:
-///   `webuild_com_linear`  → managed by grok.com
-///   `webuild_com_slack`   → managed by grok.com
+///   `webuild_com_linear`  → managed by webuild.datoms.cn
+///   `webuild_com_slack`   → managed by webuild.datoms.cn
 ///   `my_company_api`   → user-managed (local)
 ///
 /// Single source of truth lives in `xai-webuild-workspace` (which matches policy

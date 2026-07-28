@@ -104,11 +104,11 @@ fn resolve_config(cfg: &AgentConfig, auth_manager: &AuthManager) -> AgentConfig 
     {
         cfg.storage_mode = StorageMode::resolve(None, cfg.remote_settings.as_ref());
     }
-    // Writeback talks to the code backend; requires grok.com auth.
+    // Writeback talks to the code backend; requires webuild.datoms.cn auth.
     if cfg.storage_mode == StorageMode::Writeback
         && !auth_manager.current().is_some_and(|a| a.is_xai_auth())
     {
-        tracing::info!("Writeback is disabled: requires auth with grok.com");
+        tracing::info!("Writeback is disabled: requires auth with webuild.datoms.cn");
         cfg.storage_mode = StorageMode::Local;
     }
 

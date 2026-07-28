@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::auth::{AuthManager, WeBuildAuth};
 
-const WEBUILD_WEB_URL: &str = "https://grok.com";
+const WEBUILD_WEB_URL: &str = "https://webuild.datoms.cn";
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]

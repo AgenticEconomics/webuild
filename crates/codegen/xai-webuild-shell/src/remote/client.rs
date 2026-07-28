@@ -5,9 +5,9 @@ use indexmap::IndexMap;
 use prod_mc_cli_chat_proxy_types::SubagentBundle;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-const WEBUILD_CODE_BACKEND_URL: &str = "https://code.grok.com";
+const WEBUILD_CODE_BACKEND_URL: &str = "https://webuild.datoms.cn";
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
-const WEBUILD_CODE_WEB_URL: &str = "https://grok.com";
+const WEBUILD_CODE_WEB_URL: &str = "https://webuild.datoms.cn";
 /// Build a share URL from a permission ID
 pub fn share_url(permission_id: &str) -> String {
     let web_url =
@@ -1715,13 +1715,13 @@ mod tests {
     }
     #[test]
     fn inference_url_defaults_to_proxy() {
-        let ep = endpoints("https://proxy.grok.com/v1", None, None);
-        assert_eq!(ep.resolve_inference_base_url(), "https://proxy.grok.com/v1");
+        let ep = endpoints("https://proxy.webuild.datoms.cn/v1", None, None);
+        assert_eq!(ep.resolve_inference_base_url(), "https://proxy.webuild.datoms.cn/v1");
     }
     #[test]
     fn inference_url_uses_models_base_url() {
         let ep = endpoints(
-            "https://proxy.grok.com/v1",
+            "https://proxy.webuild.datoms.cn/v1",
             Some("https://enterprise.acme.com/v1"),
             None,
         );
@@ -1733,7 +1733,7 @@ mod tests {
     #[test]
     fn inference_url_base_url_wins_over_proxy() {
         let ep = endpoints(
-            "https://proxy.grok.com/v1",
+            "https://proxy.webuild.datoms.cn/v1",
             Some("https://inference.acme.com/v1"),
             Some("https://registry.acme.com/api/models"),
         );
@@ -1744,16 +1744,16 @@ mod tests {
     }
     #[test]
     fn list_url_defaults_to_proxy_models() {
-        let ep = endpoints("https://proxy.grok.com/v1", None, None);
+        let ep = endpoints("https://proxy.webuild.datoms.cn/v1", None, None);
         assert_eq!(
             ep.resolve_models_list_url(),
-            "https://proxy.grok.com/v1/models"
+            "https://proxy.webuild.datoms.cn/v1/models"
         );
     }
     #[test]
     fn list_url_derived_from_base_url() {
         let ep = endpoints(
-            "https://proxy.grok.com/v1",
+            "https://proxy.webuild.datoms.cn/v1",
             Some("https://api.x.ai/v1"),
             None,
         );
@@ -1762,7 +1762,7 @@ mod tests {
     #[test]
     fn list_url_explicit_overrides_derivation() {
         let ep = endpoints(
-            "https://proxy.grok.com/v1",
+            "https://proxy.webuild.datoms.cn/v1",
             Some("https://inference.acme.com/v1"),
             Some("https://registry.acme.com/api/list-models"),
         );
@@ -1795,10 +1795,10 @@ mod tests {
             .unwrap(),
         );
         let session = ListModelsEndpoint::from_endpoints(&cfg, ModelFetchAuth::Session);
-        assert_eq!(session.url, "https://cli-chat-proxy.grok.com/v1/models");
+        assert_eq!(session.url, "https://cli-chat-proxy.webuild.datoms.cn/v1/models");
         assert_eq!(session.auth, EndpointAuth::Session);
         let deployment = ListModelsEndpoint::from_endpoints(&cfg, ModelFetchAuth::Deployment);
-        assert_eq!(deployment.url, "https://cli-chat-proxy.grok.com/v1/models");
+        assert_eq!(deployment.url, "https://cli-chat-proxy.webuild.datoms.cn/v1/models");
         assert_eq!(deployment.auth, EndpointAuth::Session);
         let api = ListModelsEndpoint::from_endpoints(&cfg, ModelFetchAuth::ApiKey);
         assert_eq!(api.url, "https://inference.acme-corp.example/xai/v1/models");
@@ -1840,7 +1840,7 @@ mod tests {
         )
         .unwrap();
         let url = EndpointsConfig::from_config_value(&managed).resolve_managed_config_url();
-        assert_eq!(url, "https://cli-chat-proxy.grok.com/v1/deployment/config");
+        assert_eq!(url, "https://cli-chat-proxy.webuild.datoms.cn/v1/deployment/config");
         assert!(
             !url.contains("acme-corp"),
             "deployment key would be sent to the inference host: {url}"

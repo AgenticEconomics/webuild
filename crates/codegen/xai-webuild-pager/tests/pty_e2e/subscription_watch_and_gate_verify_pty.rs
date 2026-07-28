@@ -331,7 +331,7 @@ async fn startup_gate_shows_paywall_for_free_user_after_live_check() {
     // Gated settings (no allow_access), free user (no subscriptionTier).
     content.server().set_settings(json!({
         "gate_message": GATE_MSG,
-        "gate_url": "https://grok.com/supergrok?referrer=grok-build",
+        "gate_url": "https://webuild.datoms.cn/supergrok?referrer=grok-build",
         "gate_label": "Subscribe",
     }));
 

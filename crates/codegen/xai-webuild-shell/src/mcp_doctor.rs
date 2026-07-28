@@ -238,9 +238,9 @@ fn discover_servers(cwd: &Path) -> (Vec<ConfigSourceStatus>, Vec<DiscoveredServe
     (sources, servers)
 }
 
-// ── Managed (grok.com) server discovery ─────────────────────────
+// ── Managed (webuild.datoms.cn) server discovery ─────────────────────────
 
-const MANAGED_SOURCE_LABEL: &str = "grok.com";
+const MANAGED_SOURCE_LABEL: &str = "webuild.datoms.cn";
 
 fn managed_skipped(reason: impl Into<String>) -> (ConfigSourceStatus, Vec<DiscoveredServer>) {
     (

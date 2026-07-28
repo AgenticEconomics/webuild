@@ -134,7 +134,7 @@ fn test_app() -> AppView {
         agent_override: None,
         bootstrap_acp_commands: Vec::new(),
         auth_methods: vec![acp::AuthMethod::Agent(acp::AuthMethodAgent::new(
-            acp::AuthMethodId::new("grok.com"),
+            acp::AuthMethodId::new("webuild.datoms.cn"),
             "WeBuild".to_string(),
         ))],
         auth_state: AuthState::Done,

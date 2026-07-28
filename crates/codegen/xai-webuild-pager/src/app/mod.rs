@@ -1331,7 +1331,7 @@ pub(crate) fn set_terminal_title(title: &str) {
 }
 /// Sanitized/truncated window title. Strips control characters: crossterm's
 /// `SetTitle` emits the string raw inside an OSC sequence, so an embedded
-/// BEL/ESC (titles can arrive from grok.com conversation metadata) would
+/// BEL/ESC (titles can arrive from webuild.datoms.cn conversation metadata) would
 /// terminate the OSC early and let the remainder inject arbitrary escape
 /// sequences into the terminal.
 fn terminal_title_string(title: &str) -> String {

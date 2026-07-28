@@ -685,7 +685,7 @@ pub fn render_welcome(
     let mut result = match params.auth_state {
         AuthState::Pending { error } => {
             // API-key-first: when no browser login method is advertised, show
-            // provider key instructions instead of "Login with grok.com".
+            // provider key instructions instead of "Login with webuild.datoms.cn".
             let has_login = params.login_label.is_some();
             let login_text = params
                 .login_label

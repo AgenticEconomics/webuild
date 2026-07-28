@@ -393,7 +393,7 @@ pub fn build_payload(
             None,
         ),
         // A managed connector rejected for auth reasons surfaces as
-        // NeedsAuth ("visit grok.com"), not a generic Unavailable, so a
+        // NeedsAuth ("visit webuild.datoms.cn"), not a generic Unavailable, so a
         // client consuming only `server_status` (not the `mcp/list`
         // `auth_required` boolean) shows the correct terminal state. Uses
         // the same `is_auth_rejection_message` classifier the reroute and
@@ -986,7 +986,7 @@ mod tests {
 
     /// Contract: a managed connector whose handshake is rejected for
     /// auth reasons surfaces as `NeedsAuth`/`auth_expired` ("visit
-    /// grok.com"), NOT a generic `Unavailable`. Keys on the shared
+    /// webuild.datoms.cn"), NOT a generic `Unavailable`. Keys on the shared
     /// `is_auth_rejection_message` classifier.
     #[test]
     fn managed_handshake_auth_rejection_maps_to_needs_auth() {

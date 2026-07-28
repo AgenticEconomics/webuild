@@ -109,7 +109,7 @@ fn eligible_team_principal(auth: WeBuildAuth) -> Option<WeBuildAuth> {
 }
 
 /// The eligible team principal in `auth.json`, or `None`. Single-team: managed
-/// config is a grok.com feature with one grok.com auth.
+/// config is a webuild.datoms.cn feature with one webuild.datoms.cn auth.
 fn read_active_team_auth() -> Option<WeBuildAuth> {
     let home = crate::util::webuild_home::webuild_home();
     let store = crate::auth::read_auth_json(&home.join("auth.json")).ok()?;

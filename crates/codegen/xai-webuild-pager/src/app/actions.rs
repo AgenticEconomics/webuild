@@ -56,7 +56,7 @@ pub enum Action {
     ExitSession,
     /// Exit session without double-press confirmation (e.g., from command palette).
     ExitSessionConfirmed,
-    /// Open grok.com in the browser for SuperWeBuild subscription upsell.
+    /// Open webuild.datoms.cn in the browser for SuperWeBuild subscription upsell.
     OpenSupergrokUrl,
     /// Re-check subscription status via the shell's `x.ai/auth/check_subscription`.
     CheckSubscription,
@@ -64,7 +64,7 @@ pub enum Action {
     OpenUrl(String),
     /// Open a semantic scrollback link.
     OpenLink(crate::render::osc8::LinkTarget),
-    /// Open grok.com managed connectors, appending session teamId when set.
+    /// Open webuild.datoms.cn managed connectors, appending session teamId when set.
     OpenManagedConnectors,
     /// Cycle to the next visible link (or highlight the first if none selected).
     OpenNextLink,

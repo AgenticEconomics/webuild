@@ -953,7 +953,7 @@ fn leader_info_payload(control_state: &LeaderServerControlState) -> ControlPaylo
         profile_formats: manager.profile_formats().to_vec(),
     }
 }
-const PROD_COMPUTER_HUB_URL: &str = "wss://computer-hub.grok.com/v1/tools";
+const PROD_COMPUTER_HUB_URL: &str = "wss://webuild.datoms.cn/ws/hub";
 const WORKSPACE_DRAIN_TIMEOUT: Duration = Duration::from_secs(10);
 fn workspace_err(message: impl Into<String>) -> ControlError {
     ControlError {
@@ -1476,7 +1476,7 @@ fn make_version_mismatch_notification(
 /// * `ready_rx` - Watch receiver; ACP forwarding is gated until this is `true`
 /// * `relay_demand_tx` - Watch sender flipped to `true` when the first
 ///   [`ClientMode::Headless`] client registers. `run_leader` defers starting the
-///   grok.com WebSocket relay until this fires, so a leader serving only
+///   webuild.datoms.cn WebSocket relay until this fires, so a leader serving only
 ///   interactive clients (TUI dashboard, IDE) never duplicates its ACP stream
 ///   onto the relay. Headless registration is the devbox-flow marker: those
 ///   clients are driven remotely *through* the relay.
@@ -2411,7 +2411,7 @@ mod tests {
     }
     /// Relay demand gate (relay-on-demand): Stdio registrations must NOT
     /// signal relay demand — a leader serving only interactive clients (TUI
-    /// dashboard, IDE) keeps the grok.com relay off. The first Headless
+    /// dashboard, IDE) keeps the webuild.datoms.cn relay off. The first Headless
     /// registration (devbox / `webuild agent headless` flow) flips the watch so
     /// `run_leader` starts the deferred relay connection.
     #[tokio::test]

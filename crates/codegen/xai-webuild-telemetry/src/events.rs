@@ -1487,7 +1487,7 @@ pub struct CreditLimitUpsellClicked {
 // ---------------------------------------------------------------------------
 
 /// Emitted when a previously access-gated user re-authenticates and the gate
-/// is lifted — i.e. they subscribed (externally on grok.com) and came back.
+/// is lifted — i.e. they subscribed (externally on webuild.datoms.cn) and came back.
 /// This is the actual conversion signal for SuperWeBuild Heavy subscriptions
 /// attributed to WeBuild: the user saw the gate in WeBuild, went and
 /// paid, then returned with access.

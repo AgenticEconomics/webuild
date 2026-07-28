@@ -53,8 +53,8 @@ pub fn section_label(section: &McpSectionId, count: usize) -> String {
     }
 }
 
-/// Base grok.com connectors URL (no team). Prefer [`managed_connectors_url`] when opening.
-pub const MANAGED_SECTION_CONNECTORS_URL: &str = "https://grok.com/connectors";
+/// Base webuild.datoms.cn connectors URL (no team). Prefer [`managed_connectors_url`] when opening.
+pub const MANAGED_SECTION_CONNECTORS_URL: &str = "https://webuild.datoms.cn/connectors";
 
 /// Connectors deep link, appending percent-encoded `teamId` when the session is a team principal.
 pub fn managed_connectors_url(team_id: Option<&str>) -> String {
@@ -467,22 +467,22 @@ mod tests {
             lines[0]
         );
         // URL sits alone on the second line, scheme-stripped and bracket-highlighted.
-        assert_eq!(lines[1], "[grok.com/connectors]");
+        assert_eq!(lines[1], "[webuild.datoms.cn/connectors]");
         assert!(
             !lines[1].contains("https://"),
             "displayed URL should drop the scheme: {}",
             lines[1]
         );
         let with_team = section_description_lines(&McpSectionId::Managed, Some("team-1"));
-        assert_eq!(with_team[1], "[grok.com/connectors?teamId=team-1]");
+        assert_eq!(with_team[1], "[webuild.datoms.cn/connectors?teamId=team-1]");
     }
 
     #[test]
     fn managed_connectors_url_display_strips_scheme() {
-        assert_eq!(managed_connectors_url_display(None), "grok.com/connectors");
+        assert_eq!(managed_connectors_url_display(None), "webuild.datoms.cn/connectors");
         assert_eq!(
             managed_connectors_url_display(Some("team-uuid-1")),
-            "grok.com/connectors?teamId=team-uuid-1"
+            "webuild.datoms.cn/connectors?teamId=team-uuid-1"
         );
     }
 

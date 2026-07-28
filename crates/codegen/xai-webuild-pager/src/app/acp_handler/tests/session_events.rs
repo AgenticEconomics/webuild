@@ -195,7 +195,7 @@
         match last_session_event(&scrollback) {
             Some(SessionEvent::RetryFailed { error, .. }) => {
                 assert_eq!(error, RATE_LIMITED_USER_MESSAGE_API_KEY);
-                assert!(!error.contains("grok.com/supergrok"));
+                assert!(!error.contains("webuild.datoms.cn/supergrok"));
             }
             other => panic!("expected API-key rate-limit RetryFailed, got {other:?}"),
         }
@@ -401,7 +401,7 @@
         apply_retry_state(
             &RetryState::Failed {
                 error_type: "auth".into(),
-                message: "Unauthorized (401) from https://cli-chat-proxy.grok.com/v1/messages: \
+                message: "Unauthorized (401) from https://cli-chat-proxy.webuild.datoms.cn/v1/messages: \
                           no auth context"
                     .into(),
             },

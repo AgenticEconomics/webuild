@@ -1,4 +1,4 @@
-//! grok.com chat-product model catalog (`POST /rest/modes`) — the models
+//! webuild.datoms.cn chat-product model catalog (`POST /rest/modes`) — the models
 //! webuild-web's chat picker shows, distinct from the CLI `/v1/models` build
 //! catalog. Transport only; cache + ACP mapping live in
 //! [`crate::agent::chat_modes`].
@@ -9,7 +9,7 @@ use serde::Deserialize;
 
 use crate::auth::AuthManager;
 
-const WEBUILD_WEB_URL: &str = "https://grok.com";
+const WEBUILD_WEB_URL: &str = "https://webuild.datoms.cn";
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -61,7 +61,7 @@ pub struct ListModesResponse {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ChatModelsError {
-    #[error("no grok.com credentials")]
+    #[error("no webuild.datoms.cn credentials")]
     NoAuth,
     #[error("request timed out")]
     Timeout,
@@ -104,7 +104,7 @@ impl ChatModelsClient {
         }
     }
 
-    /// Gated only on a valid grok.com bearer — deliberately NOT `is_xai_auth()`
+    /// Gated only on a valid webuild.datoms.cn bearer — deliberately NOT `is_xai_auth()`
     /// (unlike workspaces/conversations), since `/rest/modes` is the public chat
     /// endpoint and that gate would exclude API-key / cached-token chat users.
     pub async fn list_modes(&self, locale: &str) -> Result<ListModesResponse, ChatModelsError> {

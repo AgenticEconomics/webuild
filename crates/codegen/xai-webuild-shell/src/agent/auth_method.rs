@@ -85,14 +85,14 @@ pub struct AuthMethodsBuildInputs<'a> {
     /// or recovered via silent refresh).
     pub has_cached_token: bool,
     /// True if enterprise OIDC is configured. Mutually exclusive with the
-    /// default `grok.com` method.
+    /// default `webuild.datoms.cn` method.
     pub has_enterprise_oidc: bool,
     /// Required when `has_enterprise_oidc` is true; ignored otherwise.
     pub enterprise_oidc_issuer: Option<&'a str>,
-    /// Optional display label for the login method (`grok.com` or `oidc`).
+    /// Optional display label for the login method (`webuild.datoms.cn` or `oidc`).
     pub login_label: Option<&'a str>,
     /// True if `webuild_com_config.auth_provider_command` is configured (sets
-    /// `meta.external_provider = true` on the `grok.com` method).
+    /// `meta.external_provider = true` on the `webuild.datoms.cn` method).
     pub has_auth_provider_command: bool,
     /// Config pin (`[auth] preferred_method`). `None` keeps multi-method
     /// fallthrough; `Some` is fail-closed (only that method family).
@@ -125,7 +125,7 @@ pub struct BuiltAuthMethods {
 /// 2. `cached_token`    (if `has_cached_token`)
 /// 3. exactly one of:
 ///    - `oidc`          (if `has_enterprise_oidc`)
-///    - `grok.com`      (otherwise)
+///    - `webuild.datoms.cn`      (otherwise)
 ///
 /// Unpinned `default_auth_method_id`:
 /// - `cached_token` if `has_cached_token`
@@ -325,7 +325,7 @@ impl AuthMethodKind {
         matches!(self, Self::XaiApiKey)
     }
 
-    /// `true` for session-based methods (cached_token, grok.com, oidc).
+    /// `true` for session-based methods (cached_token, webuild.datoms.cn, oidc).
     pub fn is_session_based(self) -> bool {
         matches!(self, Self::CachedToken | Self::WeBuildCom | Self::Oidc)
     }
@@ -344,7 +344,7 @@ impl AuthMethodKind {
     }
 }
 
-/// `true` for session-based ACP methods (cached_token, grok.com, oidc).
+/// `true` for session-based ACP methods (cached_token, webuild.datoms.cn, oidc).
 pub fn is_session_based_method(method_id: &acp::AuthMethodId) -> bool {
     AuthMethodKind::from_id(method_id).is_session_based()
 }
@@ -411,7 +411,7 @@ pub const AUTH_ERROR_API_KEY: &str = "Authentication failed. Set DASHSCOPE_API_K
 /// legacy WebLogin), or `None` when fallthrough is forbidden.
 ///
 /// Unpinned: prefer non-interactive `xai.api_key` when advertiseable, else
-/// interactive `grok.com`.
+/// interactive `webuild.datoms.cn`.
 ///
 /// Pinned `oidc`: **no** fallthrough to api_key — return `None` so the caller
 /// fails auth. Pinned `api_key` should not reach this path (cached_token is
@@ -516,7 +516,7 @@ mod tests {
         );
     }
 
-    /// No advertiseable API-key credentials → interactive `grok.com`.
+    /// No advertiseable API-key credentials → interactive `webuild.datoms.cn`.
     #[test]
     fn after_cached_token_unavailable_falls_to_webuild_com_without_api_key() {
         assert_eq!(
@@ -673,7 +673,7 @@ mod tests {
     }
 
     /// Session-only user (no API key anywhere): cached_token first, then
-    /// `grok.com` — `auth_methods.first()` does NOT need interactive login,
+    /// `webuild.datoms.cn` — `auth_methods.first()` does NOT need interactive login,
     /// so this user also skips the login screen at startup.
     #[test]
     fn session_only_user_first_method_is_cached_token() {
@@ -713,7 +713,7 @@ mod tests {
         assert!(built.default_auth_method_id.is_none());
     }
 
-    /// Opt-in browser login via env still advertises `grok.com` (wire id).
+    /// Opt-in browser login via env still advertises `webuild.datoms.cn` (wire id).
     #[test]
     #[serial]
     fn browser_login_env_advertises_webuild_com() {
@@ -724,7 +724,7 @@ mod tests {
         assert_eq!(built.methods.len(), 1);
     }
 
-    /// Enterprise OIDC replaces `grok.com` (mutually exclusive). xai.api_key,
+    /// Enterprise OIDC replaces `webuild.datoms.cn` (mutually exclusive). xai.api_key,
     /// when present, still leads.
     #[test]
     fn enterprise_oidc_replaces_webuild_com_but_xai_api_key_still_first() {
@@ -750,11 +750,11 @@ mod tests {
                 .methods
                 .iter()
                 .any(|m| AuthMethodKind::from_id(m.id()) == AuthMethodKind::WeBuildCom),
-            "grok.com and oidc are mutually exclusive",
+            "webuild.datoms.cn and oidc are mutually exclusive",
         );
     }
 
-    /// `has_auth_provider_command` is plumbed through to the `grok.com` method
+    /// `has_auth_provider_command` is plumbed through to the `webuild.datoms.cn` method
     /// as `meta.external_provider = true`. Pinning this here so the pager's
     /// `AuthStartMode::Command` path keeps working.
     #[test]
@@ -770,7 +770,7 @@ mod tests {
             .methods
             .iter()
             .find(|m| AuthMethodKind::from_id(m.id()) == AuthMethodKind::WeBuildCom)
-            .expect("grok.com must be advertised");
+            .expect("webuild.datoms.cn must be advertised");
         assert_eq!(webuild.name(), "Acme Corp");
         let meta = webuild.meta().expect("meta should be set");
         assert_eq!(
@@ -848,7 +848,7 @@ mod tests {
             let built = build_auth_methods(AuthMethodsBuildInputs {
                 has_external_api_key,
                 // Realistic enterprise user: no cached session token, default
-                // grok.com login (no enterprise OIDC).
+                // webuild.datoms.cn login (no enterprise OIDC).
                 has_cached_token: false,
                 ..default_inputs()
             });

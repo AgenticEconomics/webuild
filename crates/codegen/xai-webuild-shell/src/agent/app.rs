@@ -83,7 +83,7 @@ const MAX_AUTO_UPDATE_BUSY_DEFERRALS: u32 = 24;
 ///
 /// Idle means BOTH `agent_busy` is false (no IPC client request in flight)
 /// AND `activity.is_busy()` is false (no running turn, parked interaction,
-/// or live subagent). The second signal covers relay-driven (grok.com
+/// or live subagent). The second signal covers relay-driven (webuild.datoms.cn
 /// WebSocket) leaders, whose traffic bypasses the IPC server and never sets
 /// `agent_busy`.
 ///
@@ -439,7 +439,7 @@ async fn run_headless_inner(
     use tokio_util::sync::CancellationToken;
 
     // Headless's only transport is the relay (no IPC fallback), so a session is required.
-    const HEADLESS_NO_SESSION: &str = "Headless mode requires a grok.com session. \
+    const HEADLESS_NO_SESSION: &str = "Headless mode requires a webuild.datoms.cn session. \
         Run `webuild login` to sign in, or use `webuild agent stdio` for API-key access.";
 
     // Clean up orphaned upload queue temp files from previous sessions (best-effort).
@@ -811,7 +811,7 @@ fn relay_config_for_session(
     )
 }
 
-/// Start the leader's grok.com relay connection according to the start policy,
+/// Start the leader's webuild.datoms.cn relay connection according to the start policy,
 /// returning the slot where the [`RelayHandle`](crate::agent::relay::RelayHandle)
 /// is parked once the connection task is running.
 ///
@@ -828,7 +828,7 @@ fn relay_config_for_session(
 ///   [`ClientMode::Headless`](crate::leader::ClientMode::Headless)
 ///   registration. A leader serving only TUI-dashboard / IDE clients never
 ///   opens the relay and never pays the per-message clone/parse/log/TLS
-///   duplication of mirroring every agent message to grok.com.
+///   duplication of mirroring every agent message to webuild.datoms.cn.
 ///
 /// Until the relay starts, `agent_to_ws_tx` stays `None`, so the outbound
 /// bridge skips the relay clone entirely. Messages produced before the relay
@@ -890,7 +890,7 @@ fn spawn_leader_relay(
 }
 
 /// Run the agent in leader mode, accepting IPC connections from multiple clients.
-/// When a grok.com session is present, the leader connects to the websocket relay
+/// When a webuild.datoms.cn session is present, the leader connects to the websocket relay
 /// after startup (post-auth, post-prefetch); BYOK / no-session leaders skip it and
 /// serve clients over IPC only. See [`spawn_leader_relay`] for when the relay
 /// connection is opened (eager by default, demand-gated with `relay_on_demand`).
@@ -911,7 +911,7 @@ fn spawn_leader_relay(
 ///
 /// * `agent_config` - The agent configuration
 /// * `no_exit_on_disconnect` - If true, the leader will not exit when all clients disconnect
-/// * `relay_on_demand` - If true, defer the grok.com relay WebSocket until the
+/// * `relay_on_demand` - If true, defer the webuild.datoms.cn relay WebSocket until the
 ///   first headless IPC client registers; if false (default), connect eagerly at
 ///   startup. See [`spawn_leader_relay`].
 pub async fn run_leader(
@@ -1309,7 +1309,7 @@ pub async fn run_leader(
                 }
             });
 
-            // Bridge websocket messages to agent (from grok.com relay)
+            // Bridge websocket messages to agent (from webuild.datoms.cn relay)
             let acp_incoming_tx_ws = acp_incoming_tx.clone();
             tokio::task::spawn_local(async move {
                 while let Some(msg) = ws_to_agent_rx.recv().await {
@@ -1354,7 +1354,7 @@ pub async fn run_leader(
                 }
             });
 
-            // Start (or arm) the grok.com relay. Eager by default — a bare
+            // Start (or arm) the webuild.datoms.cn relay. Eager by default — a bare
             // `webuild agent leader` (devbox / systemd) has no local IPC clients
             // and receives remote prompts *through* the relay, so it must
             // connect unconditionally. Leaders auto-spawned by interactive
@@ -1370,7 +1370,7 @@ pub async fn run_leader(
                     cancel_clone.clone(),
                 )
             } else {
-                info!("Relay disabled: no grok.com session token (BYOK / local-only leader)");
+                info!("Relay disabled: no webuild.datoms.cn session token (BYOK / local-only leader)");
                 Rc::new(std::cell::RefCell::new(None))
             };
 
@@ -1823,7 +1823,7 @@ mod tests {
 
     /// Regression test for the bare-leader relay gating bug: a bare
     /// `webuild agent leader` (devbox/systemd — no local IPC clients,
-    /// `relay_on_demand == false`) must connect the grok.com relay eagerly.
+    /// `relay_on_demand == false`) must connect the webuild.datoms.cn relay eagerly.
     /// Remote prompts arrive *through* the relay, so on such a leader no
     /// headless-registration demand signal can ever fire; gating the relay on
     /// it means the agent never registers with the backend ("No online

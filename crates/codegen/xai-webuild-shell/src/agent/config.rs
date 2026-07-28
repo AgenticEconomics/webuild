@@ -43,11 +43,11 @@ pub fn default_agent_type() -> String {
     DEFAULT_AGENT_TYPE.to_owned()
 }
 /// Default base URL for the cli chat proxy.
-pub const CLI_CHAT_PROXY_BASE_URL_DEFAULT: &str = "https://cli-chat-proxy.grok.com/v1";
+pub const CLI_CHAT_PROXY_BASE_URL_DEFAULT: &str = "https://webuild.datoms.cn/api/auth/v1";
 /// Default base URL for the public xAI API.
 pub const XAI_API_BASE_URL_DEFAULT: &str = "https://api.x.ai/v1";
 /// Default base URL for the asset server (profile images, etc.).
-pub const ASSET_SERVER_URL_DEFAULT: &str = "https://assets.grok.com";
+pub const ASSET_SERVER_URL_DEFAULT: &str = "https://webuild.datoms.cn";
 /// One or more environment variable names that may hold a model API key.
 ///
 /// Serde `untagged`: accepts a string or an array in TOML/JSON.
@@ -3760,7 +3760,7 @@ pub struct ModelInfo {
     pub id: Option<String>,
     /// The routing slug sent in API requests.
     pub model: String,
-    /// The base URL of the model (session endpoint). e.g. "https://cli-chat-proxy.grok.com/v1"
+    /// The base URL of the model (session endpoint). e.g. "https://webuild.datoms.cn/api/auth/v1"
     pub base_url: String,
     /// Human-readable name of the model. Honored by both the picker
     /// (`/model`) and `/session-info` -- when set, that's the label shown
@@ -7470,7 +7470,7 @@ reasoning_effort = "low"
             "session auth uses the model's pinned base_url (qwen dashscope by default)"
         );
         assert_ne!(
-            sampling.base_url, "https://cli-chat-proxy.grok.com/v1",
+            sampling.base_url, "https://webuild.datoms.cn/api/auth/v1",
             "default third-party model must not route to xAI proxy"
         );
     }
@@ -7515,7 +7515,7 @@ reasoning_effort = "low"
         let sampling = resolve_sampling(model, Some("session-token-123"));
         assert_eq!(sampling.api_key.as_deref(), Some("session-token-123"));
         assert_eq!(
-            sampling.base_url, "https://cli-chat-proxy.grok.com/v1",
+            sampling.base_url, "https://webuild.datoms.cn/api/auth/v1",
             "xAI session auth should route to cli-chat-proxy"
         );
     }
@@ -7525,7 +7525,7 @@ reasoning_effort = "low"
         let mut prefetched = IndexMap::new();
         prefetched.insert(
             dm.to_string(),
-            test_model_entry(dm, "https://cli-chat-proxy.grok.com/v1", None, None, None),
+            test_model_entry(dm, "https://webuild.datoms.cn/api/auth/v1", None, None, None),
         );
         let (_, models) = resolve_models_from_toml(
             &format!(
@@ -7686,7 +7686,7 @@ reasoning_effort = "low"
             "default-webuild".to_string(),
             test_model_entry(
                 crate::models::default_model(),
-                "https://cli-chat-proxy.grok.com/v1",
+                "https://webuild.datoms.cn/api/auth/v1",
                 None,
                 None,
                 Some("https://api.x.ai/v1"),

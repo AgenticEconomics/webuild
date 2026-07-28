@@ -1,6 +1,6 @@
 //! REST client for uploading files to GCS via cli-chat-proxy.
 //!
-//! Routes requests through cli-chat-proxy using user's grok.com auth token.
+//! Routes requests through cli-chat-proxy using user's webuild.datoms.cn auth token.
 //! The proxy handles GCS authentication server-side.
 //!
 //! For large files that exceed Cloudflare's body size limit, use the multipart
@@ -420,7 +420,7 @@ pub struct StorageClient {
     /// auth middleware (direct GCS uploads via signed URLs, signed-URL
     /// downloads, etc.).
     raw_http_client: Client,
-    /// Base URL for the proxy (e.g., "https://cli-chat-proxy.grok.com/v1")
+    /// Base URL for the proxy (e.g., "https://cli-chat-proxy.webuild.datoms.cn/v1")
     base_url: String,
     /// Retry configuration for handling transient failures (especially 429 errors)
     retry_config: RetryConfig,
@@ -453,8 +453,8 @@ impl StorageClient {
     /// Production code with refresh-aware auth should use [`Self::with_provider`].
     ///
     /// # Arguments
-    /// * `proxy_base_url` - Base URL for the proxy (e.g., "https://cli-chat-proxy.grok.com/v1")
-    /// * `user_token` - User's grok.com auth token
+    /// * `proxy_base_url` - Base URL for the proxy (e.g., "https://cli-chat-proxy.webuild.datoms.cn/v1")
+    /// * `user_token` - User's webuild.datoms.cn auth token
     pub fn new(proxy_base_url: &str, user_token: &str) -> Self {
         let creds = StaticWeBuildAuth::new(Some(user_token.to_owned()));
         let bearer = creds.wire_bearer();

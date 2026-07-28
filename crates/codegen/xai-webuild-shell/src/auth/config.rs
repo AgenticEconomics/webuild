@@ -50,7 +50,7 @@ fn default_team_oauth2_scopes() -> Vec<String> {
 pub enum PreferredAuthMethod {
     /// `XAI_API_KEY` / auth.json `xai::api_key` / per-model BYOK (`xai.api_key`).
     ApiKey,
-    /// OIDC / OAuth2 session (`cached_token`, interactive `grok.com` / `oidc`,
+    /// OIDC / OAuth2 session (`cached_token`, interactive `webuild.datoms.cn` / `oidc`,
     /// including devbox-minted OIDC).
     Oidc,
 }

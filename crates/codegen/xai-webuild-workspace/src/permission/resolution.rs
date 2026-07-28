@@ -1208,7 +1208,7 @@ impl McpServerAllowlist {
     }
 }
 
-/// Namespace prefix for managed (grok.com-injected) MCP server names. Defined
+/// Namespace prefix for managed (webuild.datoms.cn-injected) MCP server names. Defined
 /// here (shell depends on workspace) and re-exported by shell's `to_managed_name`
 /// so the prefix and policy matching never drift.
 pub const MANAGED_MCP_PREFIX: &str = "webuild_com_";

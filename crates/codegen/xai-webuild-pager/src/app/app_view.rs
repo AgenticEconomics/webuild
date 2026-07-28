@@ -949,7 +949,7 @@ pub struct AppView {
     /// when `Pending`, the welcome screen shows the trust question and session
     /// creation is deferred (gated after auth) until it is answered.
     pub trust_state: TrustState,
-    /// Login button label from `AuthMethod.name` (e.g., "grok.com", "Acme Corp").
+    /// Login button label from `AuthMethod.name` (e.g., "webuild.datoms.cn", "Acme Corp").
     pub login_label: Option<String>,
     /// The auth method ID to use for login.
     pub login_method_id: Option<acp::AuthMethodId>,

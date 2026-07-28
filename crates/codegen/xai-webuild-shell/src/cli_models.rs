@@ -165,7 +165,7 @@ mod tests {
 
         assert_eq!(
             AuthStatus::resolve(&Config::default()),
-            AuthStatus::LoggedIn("grok.com".to_owned())
+            AuthStatus::LoggedIn("webuild.datoms.cn".to_owned())
         );
     }
 
@@ -259,7 +259,7 @@ mod tests {
         let cfg = config_from_toml(&byok_and_deployment_toml(dm));
         assert_eq!(
             AuthStatus::resolve(&cfg),
-            AuthStatus::LoggedIn("grok.com".to_owned())
+            AuthStatus::LoggedIn("webuild.datoms.cn".to_owned())
         );
     }
 
