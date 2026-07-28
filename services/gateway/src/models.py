@@ -17,9 +17,9 @@ class SandboxStatus(str, enum.Enum):
 class ResourceProfile(BaseModel):
     cpu_request: str = "1"
     memory_request: str = "2Gi"
-    cpu_limit: str = "2"
-    memory_limit: str = "4Gi"
-    ephemeral_storage: str = "10Gi"
+    cpu_limit: str = "4"
+    memory_limit: str = "8Gi"
+    ephemeral_storage: str = "20Gi"
 
 
 class SandboxEnvironment(BaseModel):

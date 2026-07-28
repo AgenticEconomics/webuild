@@ -117,15 +117,22 @@ async def websocket_endpoint(
     # --- Authenticate ---
     user = None
 
+    # Prefer query token; also accept Authorization: Bearer (Rust CLI client)
+    auth_header = ws.headers.get("authorization") or ws.headers.get("Authorization") or ""
+    header_token = ""
+    if auth_header.lower().startswith("bearer "):
+        header_token = auth_header[7:].strip()
+    effective_token = token or header_token
+
     # Allow internal agent token for sandbox agents (bypasses JWT)
     internal_token = os.environ.get("RELAY_INTERNAL_TOKEN", "")
-    if internal_token and token == internal_token and role == "agent":
+    if internal_token and effective_token == internal_token and role == "agent":
         # Prefer the real user id passed by the sandbox pod when available
         effective_user = user_id.strip() if user_id else "sandbox-agent"
         user = {"user_id": effective_user, "scopes": ["agent.use"]}
         logger.info("ws.internal_agent_auth", session_id=session_id, user_id=effective_user)
-    elif token:
-        user = _authenticate(token)
+    elif effective_token:
+        user = _authenticate(effective_token)
 
     if user is None:
         # Try the first message as an auth envelope

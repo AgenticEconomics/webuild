@@ -180,7 +180,7 @@ build-images:
   tags:
     - linux
   variables:
-    ACR_REGISTRY: "registry.cn-hangzhou.aliyuncs.com/webuild"
+    ACR_REGISTRY: "xingu-aliyun-acr-registry.cn-hangzhou.cr.aliyuncs.com/webuild"
   script:
     - echo "$ACR_PASSWORD" | docker login $ACR_REGISTRY --username "$ACR_USERNAME" --password-stdin
     - |
@@ -201,7 +201,11 @@ build-images:
       docker push "$ACR_REGISTRY/web-ide:latest"
     - |
       echo "Building sandbox..."
-      cp dist/webuild-linux-x86_64 sandbox/webuild-linux-x86_64 2>/dev/null || true
+      if [ ! -f dist/webuild-linux-x86_64 ]; then
+        echo "error: dist/webuild-linux-x86_64 missing; run build job first" >&2
+        exit 1
+      fi
+      cp dist/webuild-linux-x86_64 sandbox/webuild-linux-x86_64
       docker build -t "$ACR_REGISTRY/sandbox:$CI_COMMIT_SHA" \
         -t "$ACR_REGISTRY/sandbox:latest" \
         sandbox/

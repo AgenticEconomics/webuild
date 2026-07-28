@@ -28,11 +28,35 @@ logger = structlog.get_logger()
 # Environment templates (static for now; could move to DB later)
 # ------------------------------------------------------------------
 
+# Phase V: full webuild binary image (override via SANDBOX_IMAGE).
+# Legacy Python chat-only kept as environment_id=legacy-python.
+_DEFAULT_SANDBOX_IMAGE = os.environ.get(
+    "SANDBOX_IMAGE",
+    "xingu-aliyun-acr-registry.cn-hangzhou.cr.aliyuncs.com/webuild/sandbox:latest",
+)
+_LEGACY_PYTHON_IMAGE = os.environ.get(
+    "SANDBOX_LEGACY_IMAGE",
+    "registry.cn-hangzhou.aliyuncs.com/alinux/python:3.11-slim",
+)
+
 ENVIRONMENT_TEMPLATES: dict[str, SandboxEnvironment] = {
     "default": SandboxEnvironment(
         id="default",
-        name="WeBuild Sandbox (Default)",
-        container_image="registry.cn-hangzhou.aliyuncs.com/alinux/python:3.11-slim",
+        name="WeBuild Sandbox (Full Agent)",
+        container_image=_DEFAULT_SANDBOX_IMAGE,
+        resource_profile=ResourceProfile(
+            cpu_request="1",
+            memory_request="2Gi",
+            cpu_limit="4",
+            memory_limit="8Gi",
+            ephemeral_storage="20Gi",
+        ),
+        max_ttl_seconds=3600,
+    ),
+    "legacy-python": SandboxEnvironment(
+        id="legacy-python",
+        name="WeBuild Sandbox (Legacy Python Chat)",
+        container_image=_LEGACY_PYTHON_IMAGE,
         resource_profile=ResourceProfile(
             cpu_request="500m",
             memory_request="1Gi",
@@ -107,11 +131,37 @@ class SandboxManager:
                     "WEBUILD_USER_ID": user_id,
                     "DASHSCOPE_API_KEY": os.environ.get("DASHSCOPE_API_KEY", ""),
                     "MODEL": os.environ.get("MODEL", "qwen-max"),
-                    "RELAY_URL": os.environ.get("RELAY_URL", "ws://relay-server:8002/ws"),
-                    "RELAY_TOKEN": os.environ.get("RELAY_INTERNAL_TOKEN", "internal-sandbox-agent"),
+                    # Prefer public WSS (NetworkPolicy allows TCP/443 only).
+                    "RELAY_URL": os.environ.get(
+                        "RELAY_URL", "wss://webuild.datoms.cn/ws/relay"
+                    ),
+                    "RELAY_TOKEN": os.environ.get(
+                        "RELAY_INTERNAL_TOKEN", "internal-sandbox-agent"
+                    ),
+                    "WEBUILD_SANDBOX_MODE": "1",
+                    "WEBUILD_YOLO": os.environ.get("WEBUILD_YOLO", "1"),
+                    "WEBUILD_WORKSPACE": "/workspace",
+                    # webuild = full agent (default image); python = ConfigMap legacy
+                    "SANDBOX_AGENT": (
+                        "python"
+                        if request.environment_id == "legacy-python"
+                        else os.environ.get("SANDBOX_AGENT", "webuild")
+                    ),
+                    "SANDBOX_REPO_URL": os.environ.get("SANDBOX_REPO_URL", ""),
+                    "SANDBOX_REPO_BRANCH": os.environ.get("SANDBOX_REPO_BRANCH", "main"),
+                    "HUB_WS_URL": os.environ.get(
+                        "HUB_WS_URL", "wss://webuild.datoms.cn/ws/hub"
+                    ),
+                    "RUST_LOG": os.environ.get("SANDBOX_RUST_LOG", "info,xai_webuild_shell=debug"),
+                    "WEBUILD_LOG": "1",
                 },
                 resources=env.resource_profile.model_dump(),
                 ttl_seconds=env.max_ttl_seconds,
+                agent_mode=(
+                    "python"
+                    if request.environment_id == "legacy-python"
+                    else os.environ.get("SANDBOX_AGENT", "webuild")
+                ),
             )
 
             async with self._session_factory() as session:

@@ -1,0 +1,2 @@
+# Copied from CI dist/ or local release binary before `docker build`
+webuild-linux-x86_64

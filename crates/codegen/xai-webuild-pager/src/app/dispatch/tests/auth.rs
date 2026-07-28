@@ -430,9 +430,9 @@ fn login_with_empty_auth_methods_fails_closed() {
         matches!(
             &app.auth_state,
             AuthState::Pending { error: Some(msg) }
-                if msg.contains("preferred_method=api_key")
+                if msg.contains("No API key configured") || msg.contains("preferred_method=api_key")
         ),
-        "must surface pin-unavailable error, got {:?}",
+        "must surface auth-unavailable error, got {:?}",
         app.auth_state
     );
     assert!(app.login_method_id.is_none());

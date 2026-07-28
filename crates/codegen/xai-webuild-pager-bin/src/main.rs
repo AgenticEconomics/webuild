@@ -1295,6 +1295,9 @@ async fn run_agent_command(
         Some(AgentCmd::Stdio) => run_stdio_agent(&agent_config, None, agent_memory_config).await,
         Some(AgentCmd::Headless(a)) => {
             let mut agent_config = agent_config.clone();
+            // Parent-level flattened HeadlessArgs (`webuild agent --webuild-ws-url … headless`)
+            // and subcommand args (`… headless --webuild-ws-url …`) both apply; subcommand wins.
+            apply_headless_args_to_config(&agent_args.headless, &mut agent_config);
             apply_headless_args_to_config(&a, &mut agent_config);
             run_headless(
                 &agent_config,

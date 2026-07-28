@@ -91,6 +91,14 @@ services:
       - DATABASE_URL=postgresql://webuild:${DB_PASSWORD}@postgres:5432/webuild
       - KUBECONFIG=/run/secrets/sandbox-kubeconfig
       - SANDBOX_CLUSTER_API=${SANDBOX_CLUSTER_API:-}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
+      - MODEL=${MODEL:-qwen-max}
+      - RELAY_URL=${RELAY_URL:-wss://webuild.datoms.cn/ws/relay}
+      - RELAY_INTERNAL_TOKEN=${RELAY_INTERNAL_TOKEN:-webuild-internal-agent-token-2026}
+      - HUB_WS_URL=${HUB_WS_URL:-wss://webuild.datoms.cn/ws/hub}
+      - SANDBOX_IMAGE=${SANDBOX_IMAGE:-xingu-aliyun-acr-registry.cn-hangzhou.cr.aliyuncs.com/webuild/sandbox:latest}
+      - SANDBOX_AGENT=${SANDBOX_AGENT:-webuild}
+      - WEBUILD_YOLO=${WEBUILD_YOLO:-1}
     expose:
       - "8004"
     secrets:

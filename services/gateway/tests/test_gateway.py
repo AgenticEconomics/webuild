@@ -89,14 +89,17 @@ class TestK8sClient:
         assert call_args.kwargs["namespace"] == "webuild-sandbox"
         pod_body = call_args.kwargs["body"]
         assert pod_body.metadata.labels["webuild.io/sandbox"] == "test123"
-        assert pod_body.spec.security_context.run_as_user == 1000
+        assert pod_body.metadata.labels["webuild.io/agent-mode"] == "webuild"
 
         container = pod_body.spec.containers[0]
         assert container.image == "test-image:latest"
+        assert container.command is None  # image ENTRYPOINT
+        assert container.args is None
         assert container.resources.requests["cpu"] == "1"
         assert container.resources.requests["memory"] == "2Gi"
-        assert container.resources.limits["cpu"] == "2"
-        assert container.resources.limits["memory"] == "4Gi"
+        assert container.resources.limits["cpu"] == "4"
+        assert container.resources.limits["memory"] == "8Gi"
+        assert container.security_context.run_as_user == 1000
         assert container.security_context.capabilities.drop == ["ALL"]
 
         # Verify service was created
@@ -214,7 +217,7 @@ class TestModels:
         )
         assert env.max_ttl_seconds == 3600
         assert env.resource_profile.cpu_request == "1"
-        assert env.resource_profile.memory_limit == "4Gi"
+        assert env.resource_profile.memory_limit == "8Gi"
 
     def test_sandbox_response_serialization(self):
         from src.models import SandboxResponse, SandboxStatus

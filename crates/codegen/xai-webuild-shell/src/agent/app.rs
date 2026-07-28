@@ -435,12 +435,18 @@ async fn run_headless_inner(
     // as headless. IDE-facing `webuild agent stdio` stays interactive.
     crate::http::set_process_client_mode_headless();
 
-    use crate::agent::relay::spawn_relay_connection_with_callback;
+    use crate::agent::relay::{
+        is_cloud_sandbox_mode, spawn_relay_connection_with_callback, RelayConfig,
+    };
     use tokio_util::sync::CancellationToken;
+
+    let sandbox_mode = is_cloud_sandbox_mode();
 
     // Headless's only transport is the relay (no IPC fallback), so a session is required.
     const HEADLESS_NO_SESSION: &str = "Headless mode requires a webuild.datoms.cn session. \
         Run `webuild login` to sign in, or use `webuild agent stdio` for API-key access.";
+    const SANDBOX_NO_RELAY: &str = "Sandbox headless requires WEBUILD_SANDBOX_MODE=1 with \
+        RELAY_TOKEN (or RELAY_INTERNAL_TOKEN) and --webuild-ws-url including session_id&role=agent.";
 
     // Clean up orphaned upload queue temp files from previous sessions (best-effort).
     // Uses DEFAULT_MAX_AGE to stay in sync with the upload queue's retry policy.
@@ -451,9 +457,32 @@ async fn run_headless_inner(
 
     let mut agent_config = agent_config.clone();
     agent_config.mode = crate::agent::config::AgentMode::Headless;
+    if sandbox_mode {
+        // Unattended ACS pod: auto-approve tools (Web IDE can still show cards).
+        agent_config.default_yolo_mode = true;
+        info!("cloud sandbox mode: YOLO enabled, joining WeBuild Relay as agent");
+    }
 
     let ctx = &agent_config.webuild_com_config;
-    let (mut auth, did_browser_flow) = if no_browser {
+    let (mut auth, did_browser_flow) = if sandbox_mode {
+        let token = std::env::var("RELAY_TOKEN")
+            .or_else(|_| std::env::var("RELAY_INTERNAL_TOKEN"))
+            .unwrap_or_default();
+        if token.is_empty() {
+            anyhow::bail!("{SANDBOX_NO_RELAY}");
+        }
+        let user_id = std::env::var("WEBUILD_USER_ID").unwrap_or_else(|_| "sandbox-agent".into());
+        (
+            WeBuildAuth {
+                key: token,
+                auth_mode: AuthMode::ApiKey,
+                user_id,
+                create_time: chrono::Utc::now(),
+                ..Default::default()
+            },
+            false,
+        )
+    } else if no_browser {
         // No-browser mode: only use cached credentials, skip OAuth flow
         let auth_manager = agent_config.create_auth_manager();
         match auth_manager.current() {
@@ -498,7 +527,7 @@ async fn run_headless_inner(
     };
 
     // Backfill missing user_id / email from proxy (stale cached credentials).
-    if auth.user_id.is_empty() || auth.email.is_none() {
+    if !sandbox_mode && (auth.user_id.is_empty() || auth.email.is_none()) {
         auth = Arc::new(agent_config.create_auth_manager())
             .update(auth.clone())
             .await?;
@@ -538,9 +567,14 @@ async fn run_headless_inner(
 
     let shared_auth_manager = Arc::new(agent_config.create_auth_manager());
 
-    let Some(relay_config) =
+    let Some(relay_config) = (if sandbox_mode {
+        RelayConfig::for_sandbox(&agent_config.webuild_com_config, auth.clone())
+    } else {
         relay_config_for_session(Some(&auth), &agent_config, &shared_auth_manager)
-    else {
+    }) else {
+        if sandbox_mode {
+            anyhow::bail!("{SANDBOX_NO_RELAY}");
+        }
         anyhow::bail!("{HEADLESS_NO_SESSION}");
     };
 
@@ -548,23 +582,29 @@ async fn run_headless_inner(
     let webuild_code_url = format!("{}/build", ctx.webuild_ws_origin);
 
     // Create first-connection callback for headless-specific behavior
-    let on_first_connect: Box<dyn FnOnce() + Send + 'static> = Box::new(move || {
-        if !did_browser_flow && !no_browser {
-            // Print to stderr (not logger) so user sees it
-            eprintln!();
-            eprintln!(
-                "Open WeBuild: {} (press Enter to open in browser)",
-                webuild_code_url
-            );
-            eprintln!();
-            let url_for_open = webuild_code_url.clone();
-            std::thread::spawn(move || {
-                let mut input = String::new();
-                let _ = std::io::stdin().read_line(&mut input);
-                let _ = webbrowser::open(&url_for_open);
-            });
-        }
-    });
+    let on_first_connect: Box<dyn FnOnce() + Send + 'static> = if sandbox_mode {
+        Box::new(|| {
+            info!("cloud sandbox agent connected to WeBuild Relay");
+        })
+    } else {
+        Box::new(move || {
+            if !did_browser_flow && !no_browser {
+                // Print to stderr (not logger) so user sees it
+                eprintln!();
+                eprintln!(
+                    "Open WeBuild: {} (press Enter to open in browser)",
+                    webuild_code_url
+                );
+                eprintln!();
+                let url_for_open = webuild_code_url.clone();
+                std::thread::spawn(move || {
+                    let mut input = String::new();
+                    let _ = std::io::stdin().read_line(&mut input);
+                    let _ = webbrowser::open(&url_for_open);
+                });
+            }
+        })
+    };
 
     let cancel = CancellationToken::new();
 

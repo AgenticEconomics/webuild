@@ -97,48 +97,59 @@ class K8sClient:
         env_vars: dict[str, str] | None = None,
         resources: dict | None = None,
         ttl_seconds: int = 3600,
+        agent_mode: str = "webuild",
     ) -> tuple[str, str]:
-        """Create a sandbox Pod + ClusterIP Service. Returns (pod_name, service_name)."""
+        """Create a sandbox Pod + ClusterIP Service. Returns (pod_name, service_name).
+
+        agent_mode:
+          - "webuild": use image ENTRYPOINT (sandbox-init → webuild headless)
+          - "python" / "legacy-python": ConfigMap-inject sandbox_agent.py (Phase II–IV)
+        """
 
         pod_name = f"sandbox-{sandbox_id}"
         svc_name = f"sandbox-{sandbox_id}"
 
         res = resources or {}
-        cpu_request = res.get("cpu_request", "500m")
-        memory_request = res.get("memory_request", "1Gi")
-        cpu_limit = res.get("cpu_limit", "2")
-        memory_limit = res.get("memory_limit", "4Gi")
-        ephemeral_storage = res.get("ephemeral_storage", "10Gi")
+        cpu_request = res.get("cpu_request", "1")
+        memory_request = res.get("memory_request", "2Gi")
+        cpu_limit = res.get("cpu_limit", "4")
+        memory_limit = res.get("memory_limit", "8Gi")
+        ephemeral_storage = res.get("ephemeral_storage", "20Gi")
 
         env_list = [client.V1EnvVar(name=k, value=v) for k, v in (env_vars or {}).items()]
 
-        # Always inject agent code via ConfigMap (custom images not yet available)
-        volumes = None
-        volume_mounts = None
-        command = None
-        args = None
+        volumes: list | None = None
+        volume_mounts: list | None = None
+        command: list[str] | None = None
+        args: list[str] | None = None
+        run_as_user = 1000  # ubuntu in sandbox image
 
-        cm_name = self._ensure_agent_configmap(sandbox_id)
-        volumes = [
-            client.V1Volume(
-                name="agent-code",
-                config_map=client.V1ConfigMapVolumeSource(name=cm_name),
-            ),
-        ]
-        volume_mounts = [
-            client.V1VolumeMount(
-                name="agent-code",
-                mount_path="/opt/agent",
-                read_only=True,
-            ),
-        ]
-        command = ["bash", "-c"]
-        args = [
-            "pip install --break-system-packages -q httpx websockets structlog "
-            "--index-url https://mirrors.aliyun.com/pypi/simple/ "
-            "--trusted-host mirrors.aliyun.com && "
-            "exec python3 /opt/agent/sandbox_agent.py"
-        ]
+        use_legacy_python = agent_mode in ("python", "legacy-python")
+        if use_legacy_python:
+            # Phase II–IV path: inject Python agent into slim image
+            cm_name = self._ensure_agent_configmap(sandbox_id)
+            volumes = [
+                client.V1Volume(
+                    name="agent-code",
+                    config_map=client.V1ConfigMapVolumeSource(name=cm_name),
+                ),
+            ]
+            volume_mounts = [
+                client.V1VolumeMount(
+                    name="agent-code",
+                    mount_path="/opt/agent",
+                    read_only=True,
+                ),
+            ]
+            command = ["bash", "-c"]
+            args = [
+                "pip install --break-system-packages -q httpx websockets structlog "
+                "--index-url https://mirrors.aliyun.com/pypi/simple/ "
+                "--trusted-host mirrors.aliyun.com && "
+                "exec python3 /opt/agent/sandbox_agent.py"
+            ]
+            run_as_user = 0  # pip install needs root on slim image
+        # else: rely on image ENTRYPOINT (/opt/sandbox/sandbox-init.sh → webuild)
 
         # Container
         container = client.V1Container(
@@ -162,7 +173,7 @@ class K8sClient:
                 },
             ),
             security_context=client.V1SecurityContext(
-                run_as_user=0,  # Run as root to install pip packages, then agent drops privileges
+                run_as_user=run_as_user,
                 capabilities=client.V1Capabilities(drop=["ALL"]),
             ),
         )
@@ -172,6 +183,7 @@ class K8sClient:
             SANDBOX_LABEL_PREFIX: sandbox_id,
             "webuild.io/ttl-seconds": str(ttl_seconds),
             "webuild.io/created-at": str(int(datetime.now(timezone.utc).timestamp())),
+            "webuild.io/agent-mode": "python" if use_legacy_python else "webuild",
         }
 
         pod_spec = client.V1Pod(
@@ -185,11 +197,21 @@ class K8sClient:
                 volumes=volumes,
                 restart_policy="Never",
                 termination_grace_period_seconds=30,
+                # Private ACR (xingu-aliyun-acr-registry…) — created in deploy step
+                image_pull_secrets=[
+                    client.V1LocalObjectReference(name="acr-webuild"),
+                ],
             ),
         )
 
         self.core_v1.create_namespaced_pod(namespace=SANDBOX_NAMESPACE, body=pod_spec)
-        logger.info("sandbox_pod_created", pod_name=pod_name, sandbox_id=sandbox_id)
+        logger.info(
+            "sandbox_pod_created",
+            pod_name=pod_name,
+            sandbox_id=sandbox_id,
+            agent_mode="python" if use_legacy_python else "webuild",
+            image=image,
+        )
 
         # Service for internal cluster access
         svc = client.V1Service(

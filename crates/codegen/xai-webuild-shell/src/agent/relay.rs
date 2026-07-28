@@ -4,7 +4,7 @@
 //! connection to the webuild.datoms.cn relay server with automatic reconnection.
 //! It is used by both `run_headless` and `run_leader` modes to avoid code duplication.
 use super::proxy;
-use crate::auth::{WeBuildAuth, WeBuildComConfig};
+use crate::auth::{AuthManager, WeBuildAuth, WeBuildComConfig};
 use crate::{teprintln, tprintln};
 use futures_util::{SinkExt as _, StreamExt as _};
 use std::sync::Arc;
@@ -44,10 +44,9 @@ const MAX_DELAY_SECS: u64 = 60;
 const CONNECT_TIMEOUT_SECS: u64 = 30;
 /// JSON-RPC auth error code
 const AUTH_ERROR_CODE: i64 = -32000;
-use crate::auth::AuthManager;
-/// Config for the webuild.datoms.cn WebSocket relay. Fields are private so the only
-/// constructor is [`RelayConfig::for_session`] — "no relay without a session
-/// bearer" is a compile-time guarantee.
+/// Config for the webuild.datoms.cn WebSocket relay. Fields are private so the
+/// constructors are [`RelayConfig::for_session`] (OIDC session) and
+/// [`RelayConfig::for_sandbox`] (ACS cloud sandbox / internal token).
 #[derive(Clone)]
 pub struct RelayConfig {
     ws_url: String,
@@ -80,6 +79,36 @@ impl RelayConfig {
             auth_manager,
         })
     }
+
+    /// ACS / cloud sandbox headless: join WeBuild Relay without first-party OIDC.
+    ///
+    /// `ctx.webuild_ws_url` must already include `session_id`, `role=agent`, and
+    /// optionally `token` (see `sandbox/scripts/sandbox-init.sh`). The bearer
+    /// in `auth.key` is sent as `Authorization: Bearer` (Relay accepts it as
+    /// `RELAY_INTERNAL_TOKEN` when `role=agent`).
+    pub(crate) fn for_sandbox(ctx: &WeBuildComConfig, auth: WeBuildAuth) -> Option<Self> {
+        if auth.key.is_empty() || ctx.webuild_ws_url.is_empty() {
+            return None;
+        }
+        Some(Self {
+            ws_url: ctx.webuild_ws_url.clone(),
+            ws_origin: ctx.webuild_ws_origin.clone(),
+            token_header: ctx.token_header.clone(),
+            auth,
+            auth_manager: None,
+        })
+    }
+}
+
+/// `WEBUILD_SANDBOX_MODE=1|true|yes` — ACS pod / cloud sandbox headless path.
+pub fn is_cloud_sandbox_mode() -> bool {
+    matches!(
+        std::env::var("WEBUILD_SANDBOX_MODE")
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+            .as_str(),
+        "1" | "true" | "yes"
+    )
 }
 /// Callback type for first connection event.
 pub type FirstConnectCallback = Box<dyn FnOnce() + Send + 'static>;
@@ -775,6 +804,28 @@ mod tests {
             refresh_token: Some("rt".to_string()),
             ..WeBuildAuth::test_default()
         }
+    }
+    #[test]
+    fn for_sandbox_builds_with_api_key_token() {
+        let cfg = WeBuildComConfig {
+            webuild_ws_url: "wss://webuild.datoms.cn/ws/relay?session_id=s1&role=agent".into(),
+            ..WeBuildComConfig::default()
+        };
+        let auth = WeBuildAuth {
+            auth_mode: AuthMode::ApiKey,
+            key: "internal-token".into(),
+            user_id: "sandbox-agent".into(),
+            ..WeBuildAuth::test_default()
+        };
+        assert!(RelayConfig::for_sandbox(&cfg, auth).is_some());
+        assert!(RelayConfig::for_sandbox(
+            &cfg,
+            WeBuildAuth {
+                key: String::new(),
+                ..WeBuildAuth::test_default()
+            }
+        )
+        .is_none());
     }
     #[test]
     fn for_session_builds_only_for_xai_issuer() {

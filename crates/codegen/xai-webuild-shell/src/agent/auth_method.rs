@@ -698,18 +698,21 @@ mod tests {
     }
 
     /// Brand-new user (no API key, no cached token): this fork does **not**
-    /// advertise browser login by default — empty methods so the pager shows
-    /// the API-key setup message (`PREFERRED_API_KEY_UNAVAILABLE`).
+    /// advertise browser login by default — webuild.datoms.cn method so the pager
+    /// shows the login prompt (browser login is ON by default in our fork).
     #[test]
     #[serial]
-    fn fresh_user_advertises_no_browser_login_by_default() {
+    fn fresh_user_advertises_browser_login_by_default() {
         let _clear = EnvGuard::unset("WEBUILD_ENABLE_BROWSER_LOGIN");
         let built = build_auth_methods(default_inputs());
 
         assert!(
-            built.methods.is_empty(),
-            "without API key / OIDC / WEBUILD_ENABLE_BROWSER_LOGIN, no methods"
+            !built.methods.is_empty(),
+            "browser login is ON by default: webuild.datoms.cn method should be advertised"
         );
+        assert_eq!(first_kind(&built.methods), Some(AuthMethodKind::WeBuildCom));
+        // default_auth_method_id is None because there's no credential to default to;
+        // the pager will show the login prompt for the advertised method.
         assert!(built.default_auth_method_id.is_none());
     }
 
@@ -1075,10 +1078,12 @@ mod tests {
             has_cached_token: mgr.current().is_some(),
             ..default_inputs()
         });
+        // Browser login is ON by default: webuild.datoms.cn method should still be advertised
         assert!(
-            built.methods.is_empty(),
-            "no cached token AND no api key: no browser login by default (API-key-first fork)",
+            !built.methods.is_empty(),
+            "no cached token AND no api key: browser login ON by default advertises webuild.datoms.cn",
         );
+        assert_eq!(first_kind(&built.methods), Some(AuthMethodKind::WeBuildCom));
     }
 
     // ── preferred_method pin (fail-closed) ──────────────────────────────

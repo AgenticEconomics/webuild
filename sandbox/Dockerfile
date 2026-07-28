@@ -3,12 +3,15 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
+ENV WEBUILD_SANDBOX_MODE=1
+ENV WEBUILD_WORKSPACE=/workspace
+ENV HOME=/home/ubuntu
 
 # Use Aliyun mirrors for China
 RUN sed -i 's|archive.ubuntu.com|mirrors.aliyun.com|g' /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null; \
     sed -i 's|security.ubuntu.com|mirrors.aliyun.com|g' /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null; true
 
-# Install dev tools
+# Install dev tools (full agent needs git/node/python/rg for tool execution)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl wget ca-certificates \
     build-essential gcc g++ make \
@@ -19,32 +22,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Use existing ubuntu user (UID 1000 in Ubuntu 24.04)
-# No need to create — already exists with UID/GID 1000
-
-# Install Python agent dependencies
+# Optional legacy Python agent (fallback environment)
 COPY requirements.txt /opt/sandbox/requirements.txt
 RUN pip3 install --no-cache-dir --break-system-packages \
     -r /opt/sandbox/requirements.txt \
     --index-url https://mirrors.aliyun.com/pypi/simple/ \
     --trusted-host mirrors.aliyun.com
 
-# Copy sandbox agent
 COPY agent/sandbox_agent.py /opt/sandbox/sandbox_agent.py
 COPY scripts/sandbox-init.sh /opt/sandbox/sandbox-init.sh
 RUN chmod +x /opt/sandbox/sandbox-init.sh
 
-# Workspace directory
-RUN mkdir -p /workspace && chown 1000:1000 /workspace
+# Full WeBuild CLI binary (built by CI as webuild-linux-x86_64)
+COPY webuild-linux-x86_64 /usr/local/bin/webuild
+RUN chmod +x /usr/local/bin/webuild \
+    && ln -sf /usr/local/bin/webuild /usr/local/bin/agent
+
+# Workspace directory (ubuntu user UID/GID 1000)
+RUN mkdir -p /workspace /home/ubuntu/.webuild \
+    && chown -R 1000:1000 /workspace /home/ubuntu
 
 WORKDIR /workspace
 
-# Health check: verify agent is listening on 8080
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD pgrep -f sandbox_agent > /dev/null || exit 1
+    CMD pgrep -f '[w]ebuild' > /dev/null || pgrep -f '[s]andbox_agent' > /dev/null || exit 1
 
-# Run as non-root (ubuntu user, UID 1000)
 USER ubuntu
 
-# Start the sandbox agent WebSocket server
-CMD ["python3", "/opt/sandbox/sandbox_agent.py"]
+# Init clones repo / writes config, then execs webuild headless (or legacy python)
+ENTRYPOINT ["/opt/sandbox/sandbox-init.sh"]
