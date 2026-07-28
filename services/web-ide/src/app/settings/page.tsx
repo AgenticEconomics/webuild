@@ -1,18 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Sidebar } from '@/components/sidebar'
-import { Server, Key, Save, Check, Wifi, WifiOff, LogIn, Loader2 } from 'lucide-react'
-import { useSessionStore } from '@/stores/session-store'
+import { Server, Key, Save, Check, Wifi, WifiOff, LogIn, Loader2, Mail } from 'lucide-react'
+import { useSessionStore, defaultWsUrl } from '@/stores/session-store'
 import { useI18n } from '@/lib/i18n'
 import { LocaleSwitcher } from '@/components/locale-switcher'
+
+const DEFAULT_INVITE_EMAIL = 'jerry.zhang@datoms.cn'
 
 export default function SettingsPage() {
   const { isConnected } = useSessionStore()
   const { t } = useI18n()
   const [wsUrl, setWsUrl] = useState(
     typeof window !== 'undefined'
-      ? localStorage.getItem('webuild_ws_url') || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}/ws/relay`
+      ? localStorage.getItem('webuild_ws_url') || defaultWsUrl()
       : ''
   )
   const [token, setToken] = useState(
@@ -23,6 +25,17 @@ export default function SettingsPage() {
   const [loginPass, setLoginPass] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
   const [loginError, setLoginError] = useState('')
+  const [inviteEmail, setInviteEmail] = useState(DEFAULT_INVITE_EMAIL)
+
+  useEffect(() => {
+    const authBase = `${window.location.protocol}//${window.location.host}/api/auth`
+    fetch(`${authBase}/invite-info`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.invite_email) setInviteEmail(data.invite_email)
+      })
+      .catch(() => {})
+  }, [])
 
   const handleLogin = async () => {
     if (!loginUser || !loginPass) return
@@ -77,6 +90,28 @@ export default function SettingsPage() {
               {t('settingsDesc')}
             </p>
 
+            {/* Invite-only notice */}
+            <div className="console-card p-4 mb-4 border border-console-blue/30 bg-console-blue-soft/40">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded bg-console-blue-soft flex items-center justify-center flex-shrink-0">
+                  <Mail className="w-4 h-4 text-console-blue" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm text-console-ink font-medium">{t('inviteOnlyTitle')}</p>
+                  <p className="text-xs text-console-muted mt-1 leading-relaxed">{t('inviteOnlyDesc')}</p>
+                  <p className="text-xs text-console-faint mt-2">
+                    {t('inviteEmailLabel')}:{' '}
+                    <a
+                      href={`mailto:${inviteEmail}?subject=WeBuild%20access%20request`}
+                      className="text-console-blue hover:underline font-mono"
+                    >
+                      {inviteEmail}
+                    </a>
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Connection Status */}
             <div className="console-card p-4 mb-4 flex items-center gap-3">
               {isConnected ? (
@@ -129,8 +164,8 @@ export default function SettingsPage() {
                   <LogIn className="w-4 h-4 text-console-blue" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-console-ink">Login</h3>
-                  <p className="text-[11px] text-console-faint">Sign in with username and password</p>
+                  <h3 className="text-sm font-medium text-console-ink">{t('loginTitle')}</h3>
+                  <p className="text-[11px] text-console-faint">{t('loginDesc')}</p>
                 </div>
               </div>
               <div className="space-y-3">
@@ -138,7 +173,7 @@ export default function SettingsPage() {
                   type="text"
                   value={loginUser}
                   onChange={(e) => setLoginUser(e.target.value)}
-                  placeholder="Username"
+                  placeholder={t('username')}
                   className="console-input"
                   onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                 />
@@ -147,7 +182,7 @@ export default function SettingsPage() {
                     type="password"
                     value={loginPass}
                     onChange={(e) => setLoginPass(e.target.value)}
-                    placeholder="Password"
+                    placeholder={t('password')}
                     className="console-input"
                   />
                 </form>
@@ -160,7 +195,7 @@ export default function SettingsPage() {
                   className="console-btn-primary disabled:opacity-40"
                 >
                   {loginLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
-                  Login
+                  {t('loginTitle')}
                 </button>
               </div>
             </div>

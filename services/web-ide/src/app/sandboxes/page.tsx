@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { Plus, Box, Loader2, Trash2, ExternalLink, Clock } from 'lucide-react'
 import { Sidebar } from '@/components/sidebar'
 import { listSandboxes, createSandbox, terminateSandbox, type Sandbox } from '@/lib/gateway-api'
+import { createSession } from '@/lib/relay-api'
+import { useSessionStore } from '@/stores/session-store'
 
 export default function SandboxesPage() {
   const router = useRouter()
@@ -31,7 +33,15 @@ export default function SandboxesPage() {
   const handleCreate = async () => {
     setCreating(true)
     try {
-      const sb = await createSandbox()
+      // Session and sandbox share the same id so the agent joins the chat session
+      const session = await createSession()
+      const sessionId = session.session_id
+      useSessionStore.getState().upsertSession({
+        sessionId,
+        status: session.status || 'created',
+        sandboxId: sessionId,
+      })
+      const sb = await createSandbox('default', sessionId)
       router.push(`/sandboxes/${sb.id}`)
     } catch (e: any) {
       setError(e.message)
@@ -129,6 +139,14 @@ export default function SandboxesPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Link
+                        href={`/sessions/${sb.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="px-2 py-1 rounded-lg text-[11px] text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
+                        title="Open linked session"
+                      >
+                        Session
+                      </Link>
                       {sb.status !== 'terminated' && (
                         <button
                           onClick={(e) => handleTerminate(sb.id, e)}

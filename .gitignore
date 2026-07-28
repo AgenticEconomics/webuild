@@ -18,3 +18,4 @@ deploy/.env
 .kube/
 config
 .qwen/
+services/web-ide/tsconfig.tsbuildinfo

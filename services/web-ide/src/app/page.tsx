@@ -1,9 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Sparkles, Zap, Terminal, Globe } from 'lucide-react'
+import { Sparkles, Zap, Terminal, Globe, Loader2 } from 'lucide-react'
 import { Sidebar } from '@/components/sidebar'
-import { generateId } from '@/lib/uuid'
+import { startNewSession } from '@/lib/start-session'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { LocaleSwitcher } from '@/components/locale-switcher'
 
@@ -17,13 +18,25 @@ const SUGGESTIONS: { icon: typeof Zap; key: MessageKey; tone: string }[] = [
 export default function DashboardPage() {
   const router = useRouter()
   const { t } = useI18n()
+  const [starting, setStarting] = useState(false)
+  const [prompt, setPrompt] = useState('')
 
-  const startSession = (prompt?: string) => {
-    const sessionId = generateId()
-    if (prompt) {
-      sessionStorage.setItem(`initial_prompt_${sessionId}`, prompt)
+  const startSession = async (initialPrompt?: string) => {
+    if (starting) return
+    setStarting(true)
+    try {
+      const text = (initialPrompt || prompt).trim()
+      const sessionId = await startNewSession(text ? text.slice(0, 48) : undefined)
+      if (text) {
+        sessionStorage.setItem(`initial_prompt_${sessionId}`, text)
+      }
+      router.push(`/sessions/${sessionId}`)
+    } catch (e) {
+      console.error('Failed to start session:', e)
+      alert(e instanceof Error ? e.message : 'Failed to start session')
+    } finally {
+      setStarting(false)
     }
-    router.push(`/sessions/${sessionId}`)
   }
 
   return (
@@ -67,8 +80,11 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <input
                   type="text"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
                   placeholder={t('promptPlaceholder')}
-                  className="flex-1 bg-transparent px-3.5 py-3 text-sm text-console-ink placeholder:text-console-faint focus:outline-none"
+                  disabled={starting}
+                  className="flex-1 bg-transparent px-3.5 py-3 text-sm text-console-ink placeholder:text-console-faint focus:outline-none disabled:opacity-50"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && e.currentTarget.value.trim()) {
                       startSession(e.currentTarget.value.trim())
@@ -77,9 +93,10 @@ export default function DashboardPage() {
                 />
                 <button
                   onClick={() => startSession()}
-                  className="console-btn-primary flex-shrink-0"
+                  disabled={starting}
+                  className="console-btn-primary flex-shrink-0 disabled:opacity-50"
                 >
-                  {t('start')}
+                  {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : t('start')}
                 </button>
               </div>
             </div>
@@ -93,7 +110,8 @@ export default function DashboardPage() {
                 <button
                   key={key}
                   onClick={() => startSession(text)}
-                  className="group flex items-start gap-3 p-3.5 text-left console-card hover:border-console-blue hover:shadow-console transition-all"
+                  disabled={starting}
+                  className="group flex items-start gap-3 p-3.5 text-left console-card hover:border-console-blue hover:shadow-console transition-all disabled:opacity-50"
                 >
                   <span className={`mt-0.5 w-8 h-8 rounded flex items-center justify-center flex-shrink-0 ${tone}`}>
                     <Icon className="w-4 h-4" />

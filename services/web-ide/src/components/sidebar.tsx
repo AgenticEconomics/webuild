@@ -1,19 +1,67 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
-  Plus, MessageSquare, Settings, Clock, Box
+  Plus, MessageSquare, Settings, Clock, Box, Loader2, Trash2
 } from 'lucide-react'
 import { useSessionStore } from '@/stores/session-store'
-import { generateId } from '@/lib/uuid'
+import { startNewSession } from '@/lib/start-session'
 import { useI18n } from '@/lib/i18n'
 import { LocaleSwitcher } from '@/components/locale-switcher'
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { sessions, isConnected } = useSessionStore()
+  const router = useRouter()
+  const { sessions, isConnected, loadSessions, sessionsLoaded, removeSession } = useSessionStore()
   const { t } = useI18n()
+  const [creating, setCreating] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!sessionsLoaded) {
+      loadSessions()
+    }
+  }, [sessionsLoaded, loadSessions])
+
+  // Refresh when navigating between pages
+  useEffect(() => {
+    loadSessions()
+  }, [pathname, loadSessions])
+
+  const handleNewSession = async () => {
+    if (creating) return
+    setCreating(true)
+    try {
+      const sessionId = await startNewSession()
+      router.push(`/sessions/${sessionId}`)
+    } catch (e) {
+      console.error('Failed to create session:', e)
+      alert(e instanceof Error ? e.message : 'Failed to create session')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleDelete = async (sessionId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (deletingId) return
+    if (!confirm(t('deleteSessionConfirm'))) return
+    setDeletingId(sessionId)
+    try {
+      await removeSession(sessionId)
+      if (pathname === `/sessions/${sessionId}`) {
+        router.push('/')
+      }
+    } catch (err) {
+      console.error('Failed to delete session:', err)
+      alert(err instanceof Error ? err.message : 'Failed to delete session')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   return (
     <aside className="w-[256px] h-screen flex flex-col bg-console-surface border-r border-console-border flex-shrink-0">
@@ -32,13 +80,15 @@ export function Sidebar() {
 
       {/* New Session */}
       <div className="p-3">
-        <Link
-          href={`/sessions/${generateId()}`}
-          className="console-btn-primary w-full"
+        <button
+          type="button"
+          onClick={handleNewSession}
+          disabled={creating}
+          className="console-btn-primary w-full disabled:opacity-50"
         >
-          <Plus className="w-4 h-4" />
+          {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           {t('newSession')}
-        </Link>
+        </button>
       </div>
 
       {/* Sessions List */}
@@ -55,20 +105,41 @@ export function Sidebar() {
         ) : (
           <div className="space-y-0.5">
             {sessions.map((session) => (
-              <Link
+              <div
                 key={session.sessionId}
-                href={`/sessions/${session.sessionId}`}
-                className={`console-nav-item ${
+                className={`group flex items-center gap-0.5 rounded ${
                   pathname === `/sessions/${session.sessionId}`
-                    ? 'console-nav-item-active'
+                    ? 'bg-console-blue-soft'
                     : ''
                 }`}
               >
-                <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 opacity-60" />
-                <span className="truncate">
-                  {session.title || session.sessionId.slice(0, 12)}
-                </span>
-              </Link>
+                <Link
+                  href={`/sessions/${session.sessionId}`}
+                  className={`console-nav-item flex-1 min-w-0 ${
+                    pathname === `/sessions/${session.sessionId}`
+                      ? 'console-nav-item-active'
+                      : ''
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 opacity-60" />
+                  <span className="truncate">
+                    {session.title || session.sessionId.slice(0, 12)}
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  title={t('deleteSession')}
+                  onClick={(e) => handleDelete(session.sessionId, e)}
+                  disabled={deletingId === session.sessionId}
+                  className="p-1.5 mr-1 rounded opacity-0 group-hover:opacity-100 focus:opacity-100 text-console-faint hover:text-console-danger hover:bg-console-danger/10 transition-all disabled:opacity-50"
+                >
+                  {deletingId === session.sessionId ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
             ))}
           </div>
         )}

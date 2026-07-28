@@ -112,9 +112,14 @@ class AcpRouter:
                             "router.agent_disconnected",
                             session_id=session_id,
                         )
+                        req_id = None
+                        try:
+                            req_id = json.loads(raw).get("id")
+                        except Exception:
+                            pass
                         await ws.send_text(
                             make_error_response(
-                                None,
+                                req_id,
                                 INTERNAL_ERROR,
                                 "Agent not connected",
                             )
@@ -162,9 +167,23 @@ class AcpRouter:
         """Run both forwarding loops concurrently for a session pair.
 
         Returns when either side disconnects.
+        Only one caller may own the routing loop; concurrent callers wait.
         """
         if pair.browser_ws is None or pair.agent_ws is None:
             logger.warning("router.incomplete_pair", session_id=session_id)
+            return
+
+        async with pair.routing_lock:
+            if pair.is_routing:
+                already = True
+            else:
+                pair.is_routing = True
+                already = False
+
+        if already:
+            logger.info("router.already_running", session_id=session_id)
+            while pair.is_routing:
+                await asyncio.sleep(0.25)
             return
 
         logger.info("router.session_started", session_id=session_id)
@@ -181,29 +200,31 @@ class AcpRouter:
             self.forward_agent_to_browser(session_id, pair)
         )
 
-        # Wait for either side to disconnect
-        done, pending = await asyncio.wait(
-            [browser_task, agent_task],
-            return_when=asyncio.FIRST_COMPLETED,
-        )
+        try:
+            # Wait for either side to disconnect
+            done, pending = await asyncio.wait(
+                [browser_task, agent_task],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
 
-        # Cancel the other loop
-        for task in pending:
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
+            # Cancel the other loop
+            for task in pending:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+        finally:
+            pair.is_routing = False
+            # Clean up
+            pair.status = SessionStatus.CLOSED
+            pair.browser_ws = None
+            pair.agent_ws = None
+            if self._store:
+                await self._store.close_session(session_id)
 
-        # Clean up
-        pair.status = SessionStatus.CLOSED
-        pair.browser_ws = None
-        pair.agent_ws = None
-        if self._store:
-            await self._store.close_session(session_id)
+            logger.info("router.session_ended", session_id=session_id)
 
-        logger.info("router.session_ended", session_id=session_id)
-
-        # Clean up the sequence counter
-        async with self._seq_lock:
-            self._seq_counters.pop(session_id, None)
+            # Clean up the sequence counter
+            async with self._seq_lock:
+                self._seq_counters.pop(session_id, None)

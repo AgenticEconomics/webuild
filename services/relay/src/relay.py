@@ -94,6 +94,7 @@ async def websocket_endpoint(
     session_id: str = Query(default=""),
     role: str = Query(default="browser"),
     token: str = Query(default=""),
+    user_id: str = Query(default=""),
 ) -> None:
     """Main WebSocket endpoint for ACP relay.
 
@@ -101,6 +102,7 @@ async def websocket_endpoint(
       - session_id: the relay session to join (required)
       - role: "browser" (client) or "agent"
       - token: Bearer token (alternative to Authorization header)
+      - user_id: optional real user id for internal sandbox agents
     """
     assert _session_manager is not None, "relay not initialized"
     assert _router is not None, "relay not initialized"
@@ -111,8 +113,10 @@ async def websocket_endpoint(
     # Allow internal agent token for sandbox agents (bypasses JWT)
     internal_token = os.environ.get("RELAY_INTERNAL_TOKEN", "")
     if internal_token and token == internal_token and role == "agent":
-        user = {"user_id": "sandbox-agent", "scopes": ["agent.use"]}
-        logger.info("ws.internal_agent_auth", session_id=session_id)
+        # Prefer the real user id passed by the sandbox pod when available
+        effective_user = user_id.strip() if user_id else "sandbox-agent"
+        user = {"user_id": effective_user, "scopes": ["agent.use"]}
+        logger.info("ws.internal_agent_auth", session_id=session_id, user_id=effective_user)
     elif token:
         user = _authenticate(token)
 
@@ -162,9 +166,28 @@ async def websocket_endpoint(
                 user_id=user_id, session_id=session_id
             )
             if _store:
-                await _store.create_session(session_id, user_id)
+                try:
+                    await _store.create_session(session_id, user_id)
+                except Exception:
+                    # Already persisted (e.g. reopening an old session)
+                    logger.info("ws.persist_create_skipped", session_id=session_id)
+                    await _store.update_status(session_id, "waiting_agent")
             pair = await _session_manager.register_browser(session_id, ws)
         else:
+            # Reopen a previously closed in-memory session
+            if pair.status == SessionStatus.CLOSED:
+                pair.status = SessionStatus.WAITING_AGENT
+                if _store:
+                    await _store.update_status(session_id, "waiting_agent")
+            # Sandbox agents often create the session first with user_id=sandbox-agent;
+            # adopt the real browser user so the session appears in their sidebar.
+            if pair.user_id in ("sandbox-agent", "agent") and user_id not in ("sandbox-agent", "agent"):
+                await _session_manager.transfer_ownership(session_id, user_id)
+                if _store:
+                    try:
+                        await _store.update_user(session_id, user_id)
+                    except Exception:
+                        logger.exception("ws.persist_ownership_failed", session_id=session_id)
             pair = await _session_manager.register_browser(session_id, ws)
 
         if pair is None:
@@ -181,8 +204,16 @@ async def websocket_endpoint(
                 user_id=user_id, session_id=session_id
             )
             if _store:
-                await _store.create_session(session_id, user_id)
+                try:
+                    await _store.create_session(session_id, user_id)
+                except Exception:
+                    logger.info("ws.persist_create_skipped", session_id=session_id)
+                    await _store.update_status(session_id, "waiting_client")
             logger.info("ws.agent_created_session", session_id=session_id)
+        elif pair.status == SessionStatus.CLOSED:
+            pair.status = SessionStatus.WAITING_CLIENT
+            if _store:
+                await _store.update_status(session_id, "waiting_client")
 
         pair = await _session_manager.register_agent(session_id, ws)
         if pair is None:

@@ -61,12 +61,17 @@ export class AcpClient {
   async connect(wsUrl: string, token: string, sessionId?: string): Promise<unknown> {
     this.wsUrl = wsUrl;
     this.token = token;
-    this.sessionId = sessionId || "";
+    // Preserve existing sessionId on reconnect when arg omitted
+    if (sessionId) this.sessionId = sessionId;
     this.intentionalClose = false;
+
+    if (!this.sessionId) {
+      return Promise.reject(new Error("session_id is required for WebSocket connect"));
+    }
 
     const params = new URLSearchParams()
     if (token) params.set("token", token)
-    if (this.sessionId) params.set("session_id", this.sessionId)
+    params.set("session_id", this.sessionId)
     params.set("role", "browser")
     const queryStr = params.toString()
     const fullUrl = queryStr ? `${wsUrl}?${queryStr}` : wsUrl
@@ -220,10 +225,12 @@ export class AcpClient {
 
   private scheduleReconnect() {
     if (this.reconnectTimer) return;
+    // Never reconnect without a session — relay requires session_id
+    if (!this.sessionId) return;
     const delay = Math.min(1000 * Math.pow(2, Math.random() * 3), 30000);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
-      this.connect(this.wsUrl, this.token).catch(() => {
+      this.connect(this.wsUrl, this.token, this.sessionId).catch(() => {
         this.scheduleReconnect();
       });
     }, delay);

@@ -32,6 +32,8 @@ class SandboxEnvironment(BaseModel):
 
 class CreateSandboxRequest(BaseModel):
     environment_id: str = "default"
+    # Optional: use as both sandbox id and relay SESSION_ID so session↔sandbox are linked
+    id: str | None = Field(default=None, min_length=4, max_length=64)
 
 
 class SandboxResponse(BaseModel):

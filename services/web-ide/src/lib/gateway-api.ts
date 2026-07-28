@@ -17,6 +17,7 @@ export interface Sandbox {
   created_at: string
   expires_at: string
   terminated_at: string | null
+  pod_phase?: string | null
 }
 
 export interface SandboxEnvironment {
@@ -45,14 +46,29 @@ export async function listSandboxes(): Promise<Sandbox[]> {
   return data.sandboxes || data || []
 }
 
-export async function createSandbox(environmentId = 'default'): Promise<Sandbox> {
+export async function createSandbox(environmentId = 'default', sandboxId?: string): Promise<Sandbox> {
+  const body: Record<string, string> = { environment_id: environmentId }
+  if (sandboxId) body.id = sandboxId
   const res = await fetch(`${GATEWAY_BASE}/sandboxes`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ environment_id: environmentId }),
+    body: JSON.stringify(body),
   })
-  if (!res.ok) throw new Error(`Failed to create sandbox: ${res.status}`)
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`Failed to create sandbox: ${res.status}${detail ? ` ${detail}` : ''}`)
+  }
   return res.json()
+}
+
+export async function getSandboxLogs(id: string, tailLines = 200): Promise<string> {
+  const res = await fetch(
+    `${GATEWAY_BASE}/sandboxes/${id}/logs?tail_lines=${tailLines}`,
+    { headers: getAuthHeaders() },
+  )
+  if (!res.ok) throw new Error(`Failed to get logs: ${res.status}`)
+  // Gateway returns PlainTextResponse
+  return res.text()
 }
 
 export async function getSandbox(id: string): Promise<Sandbox> {

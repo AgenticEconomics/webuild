@@ -1,0 +1,17 @@
+{
+  "invite_email": "jerry.zhang@datoms.cn",
+  "users": [
+    {
+      "username": "invite01",
+      "email": "invite01@datoms.cn",
+      "password": "CHANGE_ME_01",
+      "role": "developer"
+    },
+    {
+      "username": "invite02",
+      "email": "invite02@datoms.cn",
+      "password": "CHANGE_ME_02",
+      "role": "developer"
+    }
+  ]
+}

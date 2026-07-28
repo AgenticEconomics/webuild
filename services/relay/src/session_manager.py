@@ -41,6 +41,9 @@ class SessionPair:
     # Lock to serialize writes to each WebSocket
     browser_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     agent_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    # Ensure only one run_session loop owns the pair (browser+agent both try to start)
+    routing_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    is_routing: bool = False
 
     def touch(self) -> None:
         self.updated_at = datetime.now(timezone.utc)
@@ -95,6 +98,31 @@ class SessionManager:
                 for sid in ids
                 if sid in self._sessions and self._sessions[sid].status != SessionStatus.CLOSED
             ]
+
+    async def transfer_ownership(self, session_id: str, new_user_id: str) -> SessionPair | None:
+        """Move a session to a different user (e.g. sandbox-agent → real user)."""
+        async with self._lock:
+            pair = self._sessions.get(session_id)
+            if pair is None:
+                return None
+            old = pair.user_id
+            if old == new_user_id:
+                return pair
+            pair.user_id = new_user_id
+            pair.touch()
+            old_set = self._user_index.get(old)
+            if old_set:
+                old_set.discard(session_id)
+                if not old_set:
+                    del self._user_index[old]
+            self._user_index.setdefault(new_user_id, set()).add(session_id)
+            logger.info(
+                "session.ownership_transferred",
+                session_id=session_id,
+                from_user=old,
+                to_user=new_user_id,
+            )
+            return pair
 
     async def register_browser(self, session_id: str, ws: Any) -> SessionPair | None:
         """Register a browser WebSocket for an existing or new session."""

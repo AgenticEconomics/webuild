@@ -26,6 +26,7 @@ MODEL = os.environ.get("MODEL", "qwen-max")
 RELAY_URL = os.environ.get("RELAY_URL", "ws://relay-server:8002/ws")
 SESSION_ID = os.environ.get("SANDBOX_ID", os.environ.get("SESSION_ID", "sandbox-default"))
 RELAY_TOKEN = os.environ.get("RELAY_TOKEN", "internal-sandbox-agent")
+WEBUILD_USER_ID = os.environ.get("WEBUILD_USER_ID", "")
 RECONNECT_DELAY = 3
 
 
@@ -166,7 +167,15 @@ class SandboxSession:
 
 async def connect_to_relay():
     """Connect to the Relay as an agent and handle messages."""
-    url = f"{RELAY_URL}?session_id={SESSION_ID}&role=agent&token={RELAY_TOKEN}"
+    from urllib.parse import urlencode
+    params = {
+        "session_id": SESSION_ID,
+        "role": "agent",
+        "token": RELAY_TOKEN,
+    }
+    if WEBUILD_USER_ID:
+        params["user_id"] = WEBUILD_USER_ID
+    url = f"{RELAY_URL}?{urlencode(params)}"
     logger.info("sandbox.connecting", url=RELAY_URL, session_id=SESSION_ID)
 
     while True:

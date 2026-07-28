@@ -56,7 +56,12 @@ async def create_user(
     current_user: dict = Depends(require_role("admin")),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Create a new user (admin only)."""
+    """Create a new user (admin only).
+
+    Public self-registration is disabled — WeBuild is invite-only.
+    Invite accounts are seeded from the whitelist; additional users
+    must be created by an administrator.
+    """
     # Check for existing username
     existing = await session.execute(
         select(User).where(User.username == body.username)

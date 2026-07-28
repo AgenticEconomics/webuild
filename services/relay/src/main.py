@@ -114,6 +114,10 @@ class CreateSessionRequest(BaseModel):
     model: str | None = Field(default=None, max_length=64)
 
 
+class UpdateSessionRequest(BaseModel):
+    title: str | None = Field(default=None, max_length=256)
+
+
 class SessionResponse(BaseModel):
     session_id: str
     user_id: str
@@ -278,12 +282,46 @@ async def get_session(
     return _session_manager.to_dict(pair)
 
 
+@app.patch("/sessions/{session_id}", response_model=SessionResponse, tags=["sessions"])
+async def update_session(
+    session_id: str,
+    body: UpdateSessionRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Update session metadata (e.g. title)."""
+    assert _session_manager is not None
+
+    pair = await _session_manager.get_session(session_id)
+    if pair is not None:
+        if pair.user_id != user["user_id"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Session belongs to another user")
+        if body.title is not None:
+            pair.title = body.title
+            pair.touch()
+        if _store and body.title is not None:
+            await _store.update_title(session_id, body.title)
+        return _session_manager.to_dict(pair)
+
+    if _store:
+        persisted = await _store.get_session(session_id)
+        if not persisted:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found")
+        if str(persisted.get("user_id")) != user["user_id"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Session belongs to another user")
+        if body.title is not None:
+            await _store.update_title(session_id, body.title)
+            persisted["title"] = body.title
+        return persisted
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found")
+
+
 @app.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["sessions"])
 async def delete_session(
     session_id: str,
     user: dict = Depends(get_current_user),
 ):
-    """Close and remove a session."""
+    """Permanently delete a session and its message history."""
     assert _session_manager is not None
 
     pair = await _session_manager.get_session(session_id)
@@ -293,16 +331,24 @@ async def delete_session(
             detail="Session belongs to another user",
         )
 
+    if pair is None and _store:
+        persisted = await _store.get_session(session_id)
+        if persisted and str(persisted.get("user_id")) != user["user_id"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Session belongs to another user",
+            )
+
     # Close in-memory
     await _session_manager.close_session(session_id)
     await _session_manager.remove_session(session_id)
 
-    # Close persisted
+    # Hard-delete persisted session (+ cascaded messages)
     if _store:
         try:
-            await _store.close_session(session_id)
+            await _store.delete_session(session_id)
         except Exception:
-            logger.exception("relay.persist_close_failed", session_id=session_id)
+            logger.exception("relay.persist_delete_failed", session_id=session_id)
 
 
 @app.get(
@@ -312,20 +358,33 @@ async def delete_session(
 )
 async def get_session_history(
     session_id: str,
-    limit: int = 200,
+    limit: int = 500,
     offset: int = 0,
     user: dict = Depends(get_current_user),
 ):
     """Get persisted message history for a session."""
     assert _session_manager is not None
 
-    # Verify ownership
+    # Verify ownership (in-memory or persisted)
     pair = await _session_manager.get_session(session_id)
     if pair is not None and pair.user_id != user["user_id"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Session belongs to another user",
         )
+
+    if pair is None and _store:
+        persisted = await _store.get_session(session_id)
+        if persisted is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Session {session_id} not found",
+            )
+        if str(persisted.get("user_id")) != user["user_id"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Session belongs to another user",
+            )
 
     if _store is None:
         raise HTTPException(

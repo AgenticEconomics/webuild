@@ -65,9 +65,21 @@ class SandboxManager:
         if env is None:
             raise ValueError(f"Unknown environment: {request.environment_id}")
 
-        sandbox_id = uuid.uuid4().hex[:16]
+        # Prefer caller-provided id so session_id == sandbox_id (agent joins the same session)
+        if request.id:
+            sandbox_id = request.id.strip()
+            if not sandbox_id:
+                raise ValueError("Sandbox id cannot be empty")
+        else:
+            sandbox_id = uuid.uuid4().hex[:16]
         now = datetime.now(timezone.utc)
         expires_at = now + timedelta(seconds=env.max_ttl_seconds)
+
+        # Reject duplicate ids early
+        async with self._session_factory() as session:
+            existing = await session.execute(select(Sandbox).where(Sandbox.id == sandbox_id))
+            if existing.scalar_one_or_none() is not None:
+                raise ValueError(f"Sandbox already exists: {sandbox_id}")
 
         # DB record first (status=creating)
         async with self._session_factory() as session:

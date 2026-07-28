@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Send, Square, Wrench, AlertCircle, CheckCircle2, Clock, Loader2 } from 'lucide-react'
+import Link from 'next/link'
+import { Send, Square, Wrench, AlertCircle, CheckCircle2, Clock, Loader2, Box } from 'lucide-react'
 import { Sidebar } from '@/components/sidebar'
 import { LocaleSwitcher } from '@/components/locale-switcher'
 import { useI18n } from '@/lib/i18n'
-import { useSessionStore, type Message, type ToolCall } from '@/stores/session-store'
+import { useSessionStore, type Message, type ToolCall, defaultWsUrl } from '@/stores/session-store'
+import { getSandbox, type Sandbox } from '@/lib/gateway-api'
 
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user'
@@ -50,36 +52,70 @@ function ToolBadge({ tc }: { tc: ToolCall }) {
 }
 
 export default function SessionPage({ params }: { params: { id: string } }) {
-  const { messages, toolCalls, activeSessionId, isConnected, connect, sendMessage, cancelCurrent } = useSessionStore()
+  const {
+    messages, toolCalls, activeSessionId, isConnected, connectedSessionId,
+    connect, sendMessage, cancelCurrent, setActiveSession, upsertSession, loadHistory, historyLoading,
+  } = useSessionStore()
   const { t } = useI18n()
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
+  const [sandbox, setSandbox] = useState<Sandbox | null>(null)
+  const [sandboxError, setSandboxError] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const initialPromptSent = useRef(false)
 
   useEffect(() => {
-    if (params.id && params.id !== activeSessionId) {
-      useSessionStore.setState({ activeSessionId: params.id, messages: [], toolCalls: [] })
+    if (params.id) {
+      setActiveSession(params.id)
+      upsertSession({ sessionId: params.id, status: 'active', sandboxId: params.id })
+      loadHistory(params.id)
     }
-  }, [params.id, activeSessionId])
+  }, [params.id, setActiveSession, upsertSession, loadHistory])
 
   useEffect(() => {
-    if (!isConnected && params.id) {
-      const storedWsUrl = localStorage.getItem('webuild_ws_url')
-      // Default: connect directly to relay on port 8002 (bypasses Caddy WS proxy issues)
-      const host = window.location.hostname
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsUrl = storedWsUrl || `${wsProtocol}//${host}/ws/relay`
-      const token = localStorage.getItem('webuild_token') || ''
-      connect(wsUrl, token, params.id).catch(() => {})
+    if (!params.id) return
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const sb = await getSandbox(params.id)
+        if (!cancelled) {
+          setSandbox(sb)
+          setSandboxError('')
+        }
+      } catch (e: unknown) {
+        if (!cancelled) {
+          setSandbox(null)
+          setSandboxError(e instanceof Error ? e.message : 'Sandbox unavailable')
+        }
+      }
     }
-  }, [isConnected, connect, params.id])
+    poll()
+    const timer = setInterval(poll, 5000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [params.id])
+
+  // Always (re)connect when the URL session changes — previous bug kept the old WS
+  useEffect(() => {
+    if (!params.id) return
+    if (isConnected && connectedSessionId === params.id) return
+
+    const storedWsUrl = localStorage.getItem('webuild_ws_url')
+    const wsUrl = storedWsUrl || defaultWsUrl()
+    const token = localStorage.getItem('webuild_token') || ''
+    connect(wsUrl, token, params.id).catch((e) => {
+      console.error('WS connect failed:', e)
+    })
+  }, [params.id, connectedSessionId, isConnected, connect])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, toolCalls])
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
@@ -87,23 +123,33 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     }
   }, [input])
 
-  // Send initial prompt if stored
   useEffect(() => {
+    initialPromptSent.current = false
+  }, [params.id])
+
+  useEffect(() => {
+    if (!isConnected || connectedSessionId !== params.id || initialPromptSent.current) return
     const key = `initial_prompt_${params.id}`
     const prompt = sessionStorage.getItem(key)
     if (prompt) {
       sessionStorage.removeItem(key)
-      setTimeout(() => handleSend(prompt), 500)
+      initialPromptSent.current = true
+      setTimeout(() => handleSend(prompt), 1000)
     }
-  }, [params.id])
+  }, [params.id, isConnected, connectedSessionId])
 
   const handleSend = async (text?: string) => {
     const msg = text || input.trim()
     if (!msg || sending) return
     if (!text) setInput('')
     setSending(true)
+    setSendError('')
     try {
       await sendMessage(msg)
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : 'Send failed'
+      setSendError(errMsg)
+      console.error('send failed:', e)
     } finally {
       setSending(false)
     }
@@ -116,53 +162,104 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     }
   }
 
+  const sandboxProvisioning = sandbox?.status === 'creating'
+  const paired = isConnected && connectedSessionId === params.id
+  const canSend = paired && !sandboxProvisioning
+
   return (
     <div className="flex h-screen">
       <Sidebar />
 
       <main className="flex-1 flex flex-col min-w-0 bg-console-bg">
         {/* Header */}
-        <header className="h-14 border-b border-console-border bg-console-surface flex items-center px-5 flex-shrink-0">
-          <div className="flex items-center gap-2 text-sm">
+        <header className="h-14 border-b border-console-border bg-console-surface flex items-center px-5 flex-shrink-0 gap-3">
+          <div className="flex items-center gap-2 text-sm min-w-0">
             <span className="text-console-muted">{t('session')}</span>
             <span className="text-console-border-strong">/</span>
-            <span className="text-console-ink font-mono text-xs">
+            <span className="text-console-ink font-mono text-xs truncate">
               {activeSessionId?.slice(0, 8)}...
             </span>
           </div>
           <div className="ml-auto flex items-center gap-3">
+            {sandbox && (
+              <Link
+                href={`/sandboxes/${sandbox.id}`}
+                className="flex items-center gap-1.5 text-[11px] text-console-muted hover:text-console-ink transition-colors"
+                title="Open linked sandbox"
+              >
+                <Box className="w-3.5 h-3.5" />
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                  sandbox.status === 'running' ? 'bg-console-success-soft text-console-success' :
+                  sandbox.status === 'creating' ? 'bg-console-warn-soft text-console-warn' :
+                  'bg-console-border text-console-faint'
+                }`}>
+                  {sandbox.status}
+                </span>
+              </Link>
+            )}
             <LocaleSwitcher />
             <div
               className={`flex items-center gap-1.5 text-[11px] ${
-                isConnected ? 'text-console-success' : 'text-console-danger'
+                paired ? 'text-console-success' : 'text-console-danger'
               }`}
             >
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
-                  isConnected ? 'bg-console-success animate-pulse-dot' : 'bg-console-danger'
+                  paired ? 'bg-console-success animate-pulse-dot' : 'bg-console-danger'
                 }`}
               />
-              {isConnected ? t('connected') : t('disconnected')}
+              {paired ? t('connected') : t('disconnected')}
             </div>
           </div>
         </header>
 
+        {sandboxProvisioning && (
+          <div className="px-5 py-2 border-b border-console-border bg-console-warn-soft text-xs text-console-warn flex items-center gap-2">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Provisioning linked sandbox… Agent will join when ready.
+          </div>
+        )}
+
+        {sendError && (
+          <div className="px-5 py-2 border-b border-console-border bg-red-500/10 text-xs text-red-400">
+            {sendError}
+            {sendError.toLowerCase().includes('agent') && (
+              <span className="ml-1">Waiting for sandbox/agent to connect.</span>
+            )}
+          </div>
+        )}
+
         {/* Messages */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-6 py-8 space-y-5">
-            {messages.length === 0 && (
+            {messages.length === 0 && !historyLoading && (
               <div className="text-center py-16">
                 <div className="w-12 h-12 mx-auto mb-4 rounded bg-console-blue-soft flex items-center justify-center">
                   <Send className="w-5 h-5 text-console-blue" />
                 </div>
                 <p className="text-console-muted text-sm">{t('startConversation')}</p>
+                {sandbox && (
+                  <p className="text-console-faint text-xs mt-2">
+                    Linked sandbox: <span className="font-mono">{sandbox.id.slice(0, 12)}</span>
+                  </p>
+                )}
+                {!sandbox && sandboxError && (
+                  <p className="text-console-faint text-xs mt-2">
+                    No cloud sandbox — using lightweight agent if available.
+                  </p>
+                )}
+              </div>
+            )}
+            {historyLoading && messages.length === 0 && (
+              <div className="text-center py-16">
+                <Loader2 className="w-6 h-6 text-console-faint animate-spin mx-auto mb-3" />
+                <p className="text-console-faint text-sm">Loading history…</p>
               </div>
             )}
             {messages.map((msg) => (
               <MessageBubble key={msg.id} message={msg} />
             ))}
 
-            {/* Tool call badges */}
             {toolCalls.length > 0 && (
               <div className="flex flex-wrap gap-1.5 pl-10">
                 {toolCalls.slice(-6).map((tc) => (
@@ -185,8 +282,14 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={isConnected ? t('messagePlaceholder') : t('connecting')}
-                  disabled={!isConnected}
+                  placeholder={
+                    !paired
+                      ? t('connecting')
+                      : sandboxProvisioning
+                        ? 'Waiting for sandbox…'
+                        : t('messagePlaceholder')
+                  }
+                  disabled={!canSend}
                   rows={1}
                   className="flex-1 bg-transparent px-3.5 py-2.5 text-sm text-console-ink placeholder:text-console-faint focus:outline-none resize-none disabled:opacity-40"
                 />
@@ -200,7 +303,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                 ) : (
                   <button
                     onClick={() => handleSend()}
-                    disabled={!input.trim() || !isConnected}
+                    disabled={!input.trim() || !canSend}
                     className="p-2.5 rounded bg-console-blue text-white hover:bg-console-blue-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <Send className="w-4 h-4" />

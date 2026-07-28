@@ -16,6 +16,10 @@ import websockets
 logger = structlog.get_logger()
 
 RELAY_URL = os.environ.get("RELAY_URL", "ws://relay-server:8002/ws")
+RELAY_TOKEN = os.environ.get(
+    "RELAY_INTERNAL_TOKEN",
+    os.environ.get("RELAY_TOKEN", "internal-agent"),
+)
 DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY", "")
 DASHSCOPE_BASE_URL = os.environ.get(
     "DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"
@@ -161,7 +165,7 @@ class WeBuildAgent:
 
 async def run_session(ws_url: str, session_id: str):
     """Connect to relay as agent for one session."""
-    url = f"{ws_url}?session_id={session_id}&role=agent&token=internal-agent"
+    url = f"{ws_url}?session_id={session_id}&role=agent&token={RELAY_TOKEN}"
 
     while True:
         try:

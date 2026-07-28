@@ -95,10 +95,32 @@ class SessionStore:
         title: str | None = None,
         model: str | None = None,
     ) -> None:
+        try:
+            uid = uuid.UUID(user_id)
+        except ValueError:
+            logger.warning(
+                "persist.session_skip_invalid_user",
+                session_id=session_id,
+                user_id=user_id,
+            )
+            return
         async with self._factory() as db:
+            # Upsert-friendly: ignore if already exists
+            existing = await db.execute(
+                select(RelaySession).where(RelaySession.id == session_id)
+            )
+            if existing.scalar_one_or_none() is not None:
+                await db.execute(
+                    update(RelaySession)
+                    .where(RelaySession.id == session_id)
+                    .values(user_id=uid, status="created", updated_at=_utcnow(), closed_at=None)
+                )
+                await db.commit()
+                logger.info("persist.session_reopened", session_id=session_id)
+                return
             rec = RelaySession(
                 id=session_id,
-                user_id=uuid.UUID(user_id),
+                user_id=uid,
                 title=title,
                 model=model,
                 status="created",
@@ -106,6 +128,28 @@ class SessionStore:
             db.add(rec)
             await db.commit()
             logger.info("persist.session_created", session_id=session_id)
+
+    async def update_user(self, session_id: str, user_id: str) -> None:
+        try:
+            uid = uuid.UUID(user_id)
+        except ValueError:
+            return
+        async with self._factory() as db:
+            await db.execute(
+                update(RelaySession)
+                .where(RelaySession.id == session_id)
+                .values(user_id=uid, updated_at=_utcnow())
+            )
+            await db.commit()
+
+    async def update_title(self, session_id: str, title: str) -> None:
+        async with self._factory() as db:
+            await db.execute(
+                update(RelaySession)
+                .where(RelaySession.id == session_id)
+                .values(title=title[:256], updated_at=_utcnow())
+            )
+            await db.commit()
 
     async def update_status(self, session_id: str, status: str) -> None:
         async with self._factory() as db:
