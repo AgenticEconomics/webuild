@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Send, Square, Wrench, AlertCircle, CheckCircle2, Clock, Loader2, Box } from 'lucide-react'
-import { Sidebar } from '@/components/sidebar'
+import { AppShell, NavMenuButton } from '@/components/app-shell'
 import { LocaleSwitcher } from '@/components/locale-switcher'
 import { useI18n } from '@/lib/i18n'
 import { useSessionStore, type Message, type ToolCall, defaultWsUrl } from '@/stores/session-store'
@@ -13,13 +13,13 @@ import { MessageContent } from '@/components/message-content'
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user'
   return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''} animate-fade-in`}>
-      <div className={`w-7 h-7 rounded flex items-center justify-center flex-shrink-0 text-[11px] font-medium ${
+    <div className={`flex gap-2 animate-fade-in sm:gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
+      <div className={`hidden h-7 w-7 flex-shrink-0 items-center justify-center rounded text-[11px] font-medium sm:flex ${
         isUser ? 'bg-console-blue text-white' : 'bg-console-blue-soft text-console-blue-ink'
       }`}>
         {isUser ? 'U' : 'W'}
       </div>
-      <div className={`max-w-[70%] rounded px-4 py-3 text-sm leading-relaxed ${
+      <div className={`max-w-[92%] rounded px-3 py-2.5 text-sm leading-relaxed sm:max-w-[75%] sm:px-4 sm:py-3 ${
         isUser
           ? 'bg-console-blue text-white'
           : 'bg-console-surface text-console-ink border border-console-border shadow-console-sm'
@@ -170,28 +170,26 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const canSend = paired && acpReady && !sandboxProvisioning
 
   return (
-    <div className="flex h-screen">
-      <Sidebar />
-
-      <main className="flex-1 flex flex-col min-w-0 bg-console-bg">
-        {/* Header */}
-        <header className="h-14 border-b border-console-border bg-console-surface flex items-center px-5 flex-shrink-0 gap-3">
-          <div className="flex items-center gap-2 text-sm min-w-0">
-            <span className="text-console-muted">{t('session')}</span>
-            <span className="text-console-border-strong">/</span>
-            <span className="text-console-ink font-mono text-xs truncate">
-              {activeSessionId?.slice(0, 8)}...
+    <AppShell>
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-console-bg">
+        <header className="flex h-14 flex-shrink-0 items-center gap-2 border-b border-console-border bg-console-surface px-3 sm:gap-3 sm:px-5">
+          <NavMenuButton />
+          <div className="flex min-w-0 items-center gap-2 text-sm">
+            <span className="hidden text-console-muted sm:inline">{t('session')}</span>
+            <span className="hidden text-console-border-strong sm:inline">/</span>
+            <span className="truncate font-mono text-xs text-console-ink">
+              {activeSessionId?.slice(0, 8)}…
             </span>
           </div>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
             {sandbox && (
               <Link
                 href={`/sandboxes/${sandbox.id}`}
-                className="flex items-center gap-1.5 text-[11px] text-console-muted hover:text-console-ink transition-colors"
+                className="flex items-center gap-1.5 text-[11px] text-console-muted transition-colors hover:text-console-ink"
                 title="Open linked sandbox"
               >
-                <Box className="w-3.5 h-3.5" />
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                <Box className="h-3.5 w-3.5" />
+                <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
                   sandbox.status === 'running' ? 'bg-console-success-soft text-console-success' :
                   sandbox.status === 'creating' ? 'bg-console-warn-soft text-console-warn' :
                   'bg-console-border text-console-faint'
@@ -200,7 +198,9 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                 </span>
               </Link>
             )}
-            <LocaleSwitcher />
+            <div className="hidden sm:block">
+              <LocaleSwitcher />
+            </div>
             <div
               className={`flex items-center gap-1.5 text-[11px] ${
                 acpReady ? 'text-console-success' :
@@ -208,38 +208,42 @@ export default function SessionPage({ params }: { params: { id: string } }) {
               }`}
             >
               <span
-                className={`w-1.5 h-1.5 rounded-full ${
+                className={`h-1.5 w-1.5 rounded-full ${
                   acpReady ? 'bg-console-success animate-pulse-dot' :
                   paired ? 'bg-console-warn animate-pulse-dot' : 'bg-console-danger'
                 }`}
               />
-              {acpReady
-                ? t('connected')
-                : paired
-                  ? (agentConnected ? 'Handshaking…' : 'Waiting for agent…')
-                  : t('disconnected')}
+              <span className="hidden max-w-[140px] truncate sm:inline">
+                {acpReady
+                  ? t('connected')
+                  : paired
+                    ? (agentConnected ? 'Handshaking…' : 'Waiting for agent…')
+                    : t('disconnected')}
+              </span>
             </div>
           </div>
         </header>
 
         {sandboxProvisioning && (
-          <div className="px-5 py-2 border-b border-console-border bg-console-warn-soft text-xs text-console-warn flex items-center gap-2">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            Provisioning linked sandbox… Agent will join when ready.
+          <div className="flex items-center gap-2 border-b border-console-border bg-console-warn-soft px-3 py-2 text-xs text-console-warn sm:px-5">
+            <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
+            <span>Provisioning linked sandbox… Agent will join when ready.</span>
           </div>
         )}
 
         {paired && !acpReady && !sandboxProvisioning && (
-          <div className="px-5 py-2 border-b border-console-border bg-console-warn-soft text-xs text-console-warn flex items-center gap-2">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            {agentConnected
-              ? 'Agent connected — finishing ACP handshake…'
-              : 'Waiting for sandbox agent to connect…'}
+          <div className="flex items-center gap-2 border-b border-console-border bg-console-warn-soft px-3 py-2 text-xs text-console-warn sm:px-5">
+            <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
+            <span>
+              {agentConnected
+                ? 'Agent connected — finishing ACP handshake…'
+                : 'Waiting for sandbox agent to connect…'}
+            </span>
           </div>
         )}
 
         {sendError && (
-          <div className="px-5 py-2 border-b border-console-border bg-red-500/10 text-xs text-red-400">
+          <div className="border-b border-console-border bg-red-500/10 px-3 py-2 text-xs text-red-400 sm:px-5">
             {sendError}
             {sendError.toLowerCase().includes('agent') && (
               <span className="ml-1">Waiting for sandbox/agent to connect.</span>
@@ -247,31 +251,30 @@ export default function SessionPage({ params }: { params: { id: string } }) {
           </div>
         )}
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto px-6 py-8 space-y-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="mx-auto max-w-3xl space-y-4 px-3 py-5 sm:space-y-5 sm:px-6 sm:py-8">
             {messages.length === 0 && !historyLoading && (
-              <div className="text-center py-16">
-                <div className="w-12 h-12 mx-auto mb-4 rounded bg-console-blue-soft flex items-center justify-center">
-                  <Send className="w-5 h-5 text-console-blue" />
+              <div className="py-12 text-center sm:py-16">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded bg-console-blue-soft">
+                  <Send className="h-5 w-5 text-console-blue" />
                 </div>
-                <p className="text-console-muted text-sm">{t('startConversation')}</p>
+                <p className="text-sm text-console-muted">{t('startConversation')}</p>
                 {sandbox && (
-                  <p className="text-console-faint text-xs mt-2">
+                  <p className="mt-2 text-xs text-console-faint">
                     Linked sandbox: <span className="font-mono">{sandbox.id.slice(0, 12)}</span>
                   </p>
                 )}
                 {!sandbox && sandboxError && (
-                  <p className="text-console-faint text-xs mt-2">
+                  <p className="mt-2 text-xs text-console-faint">
                     No cloud sandbox — using lightweight agent if available.
                   </p>
                 )}
               </div>
             )}
             {historyLoading && messages.length === 0 && (
-              <div className="text-center py-16">
-                <Loader2 className="w-6 h-6 text-console-faint animate-spin mx-auto mb-3" />
-                <p className="text-console-faint text-sm">Loading history…</p>
+              <div className="py-12 text-center sm:py-16">
+                <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-console-faint" />
+                <p className="text-sm text-console-faint">Loading history…</p>
               </div>
             )}
             {messages.map((msg) => (
@@ -279,7 +282,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
             ))}
 
             {toolCalls.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pl-10">
+              <div className="flex flex-wrap gap-1.5 pl-0 sm:pl-10">
                 {toolCalls.slice(-6).map((tc) => (
                   <ToolBadge key={tc.toolCallId} tc={tc} />
                 ))}
@@ -290,10 +293,9 @@ export default function SessionPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        {/* Input */}
-        <div className="border-t border-console-border bg-console-surface px-6 py-4 flex-shrink-0">
-          <div className="max-w-3xl mx-auto">
-            <div className="console-card shadow-console p-1.5">
+        <div className="flex-shrink-0 border-t border-console-border bg-console-surface px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4">
+          <div className="mx-auto max-w-3xl">
+            <div className="console-card p-1.5 shadow-console">
               <div className="flex items-end gap-2">
                 <textarea
                   ref={textareaRef}
@@ -309,32 +311,32 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                   }
                   disabled={!canSend}
                   rows={1}
-                  className="flex-1 bg-transparent px-3.5 py-2.5 text-sm text-console-ink placeholder:text-console-faint focus:outline-none resize-none disabled:opacity-40"
+                  className="min-w-0 flex-1 resize-none bg-transparent px-3 py-2.5 text-sm text-console-ink placeholder:text-console-faint focus:outline-none disabled:opacity-40 sm:px-3.5"
                 />
                 {sending ? (
                   <button
                     onClick={cancelCurrent}
-                    className="p-2.5 rounded bg-console-danger text-white hover:opacity-90 transition-opacity"
+                    className="rounded bg-console-danger p-2.5 text-white transition-opacity hover:opacity-90"
                   >
-                    <Square className="w-4 h-4" />
+                    <Square className="h-4 w-4" />
                   </button>
                 ) : (
                   <button
                     onClick={() => handleSend()}
                     disabled={!input.trim() || !canSend}
-                    className="p-2.5 rounded bg-console-blue text-white hover:bg-console-blue-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="rounded bg-console-blue p-2.5 text-white transition-colors hover:bg-console-blue-hover disabled:cursor-not-allowed disabled:opacity-30"
                   >
-                    <Send className="w-4 h-4" />
+                    <Send className="h-4 w-4" />
                   </button>
                 )}
               </div>
             </div>
-            <p className="text-[10px] text-console-faint text-center mt-2">
-              <kbd className="px-1 py-0.5 rounded border border-console-border bg-console-bg text-console-muted">
+            <p className="mt-2 hidden text-center text-[10px] text-console-faint sm:block">
+              <kbd className="rounded border border-console-border bg-console-bg px-1 py-0.5 text-console-muted">
                 Enter
               </kbd>{' '}
               {t('toSend')} ·{' '}
-              <kbd className="px-1 py-0.5 rounded border border-console-border bg-console-bg text-console-muted">
+              <kbd className="rounded border border-console-border bg-console-bg px-1 py-0.5 text-console-muted">
                 Shift+Enter
               </kbd>{' '}
               {t('forNewline')}
@@ -342,6 +344,6 @@ export default function SessionPage({ params }: { params: { id: string } }) {
           </div>
         </div>
       </main>
-    </div>
+    </AppShell>
   )
 }

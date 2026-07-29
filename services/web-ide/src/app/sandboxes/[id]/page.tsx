@@ -6,7 +6,7 @@ import {
   ArrowLeft, Box, Clock, Loader2, Trash2, Send, Terminal,
   ScrollText, RefreshCw, ChevronDown, ChevronUp,
 } from 'lucide-react'
-import { Sidebar } from '@/components/sidebar'
+import { AppShell, NavMenuButton } from '@/components/app-shell'
 import {
   getSandbox, terminateSandbox, getSandboxLogs, type Sandbox,
 } from '@/lib/gateway-api'
@@ -25,7 +25,7 @@ export default function SandboxDetailPage({ params }: { params: { id: string } }
 
   // Logs panel
   const [logs, setLogs] = useState('')
-  const [logsOpen, setLogsOpen] = useState(true)
+  const [logsOpen, setLogsOpen] = useState(false)
   const [logsLoading, setLogsLoading] = useState(false)
   const [logsError, setLogsError] = useState('')
   const logsEndRef = useRef<HTMLPreElement>(null)
@@ -131,99 +131,105 @@ export default function SandboxDetailPage({ params }: { params: { id: string } }
 
   if (loading) {
     return (
-      <div className="flex h-screen">
-        <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 text-zinc-500 animate-spin" />
+      <AppShell>
+        <main className="flex min-h-0 flex-1 items-center justify-center bg-console-bg">
+          <Loader2 className="h-6 w-6 animate-spin text-console-faint" />
         </main>
-      </div>
+      </AppShell>
     )
   }
 
   return (
-    <div className="flex h-screen">
-      <Sidebar />
-      <main className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="h-14 border-b border-zinc-700/50 flex items-center px-5 flex-shrink-0 gap-3">
-          <button onClick={() => router.push('/sandboxes')} className="text-zinc-400 hover:text-white transition-colors">
-            <ArrowLeft className="w-4 h-4" />
+    <AppShell>
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-console-bg">
+        <header className="flex h-14 flex-shrink-0 items-center gap-2 border-b border-console-border bg-console-surface px-3 sm:gap-3 sm:px-5">
+          <NavMenuButton />
+          <button
+            onClick={() => router.push('/sandboxes')}
+            className="text-console-muted transition-colors hover:text-console-ink"
+            aria-label="Back to sandboxes"
+          >
+            <ArrowLeft className="h-4 w-4" />
           </button>
-          <Box className="w-4 h-4 text-indigo-400" />
-          <span className="text-sm font-mono text-zinc-300">{sandbox?.id}</span>
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
-            sandbox?.status === 'running' ? 'text-emerald-400 bg-emerald-400/10' :
-            sandbox?.status === 'creating' ? 'text-amber-400 bg-amber-400/10' :
-            'text-zinc-500 bg-zinc-500/10'
+          <Box className="hidden h-4 w-4 flex-shrink-0 text-console-blue sm:block" />
+          <span className="min-w-0 truncate font-mono text-xs text-console-ink sm:text-sm">
+            {sandbox?.id}
+          </span>
+          <span className={`flex-shrink-0 rounded px-2 py-0.5 text-[10px] font-medium ${
+            sandbox?.status === 'running' ? 'bg-console-success-soft text-console-success' :
+            sandbox?.status === 'creating' ? 'bg-console-warn-soft text-console-warn' :
+            'bg-console-border text-console-faint'
           }`}>
             {sandbox?.status}
           </span>
-          {sandbox?.pod_phase && (
-            <span className="text-[10px] text-zinc-500">pod: {sandbox.pod_phase}</span>
-          )}
-          <div className="ml-auto flex items-center gap-3">
-            <span className={`flex items-center gap-1.5 text-xs ${
-              isConnected && connectedSessionId === sandbox?.id ? 'text-emerald-400' : 'text-zinc-500'
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <span className={`hidden items-center gap-1.5 text-xs sm:flex ${
+              isConnected && connectedSessionId === sandbox?.id ? 'text-console-success' : 'text-console-faint'
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${
-                isConnected && connectedSessionId === sandbox?.id ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-600'
+              <span className={`h-1.5 w-1.5 rounded-full ${
+                isConnected && connectedSessionId === sandbox?.id ? 'bg-console-success animate-pulse-dot' : 'bg-console-border'
               }`} />
               {isConnected && connectedSessionId === sandbox?.id
                 ? 'Agent Connected'
                 : sandbox?.status === 'creating' ? 'Starting...' : 'Disconnected'}
             </span>
             {sandbox?.status !== 'terminated' && (
-              <button onClick={handleTerminate} className="p-1.5 rounded-lg hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition-colors">
-                <Trash2 className="w-4 h-4" />
+              <button
+                onClick={handleTerminate}
+                className="rounded p-1.5 text-console-muted transition-colors hover:bg-console-danger-soft hover:text-console-danger"
+              >
+                <Trash2 className="h-4 w-4" />
               </button>
             )}
           </div>
         </header>
 
         {error && (
-          <div className="mx-5 mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400">{error}</div>
+          <div className="mx-3 mt-3 rounded border border-console-danger/30 bg-console-danger-soft p-3 text-sm text-console-danger sm:mx-5">
+            {error}
+          </div>
         )}
 
-        {/* Sandbox info bar */}
-        <div className="px-5 py-2 border-b border-zinc-800 flex items-center gap-4 text-xs text-zinc-500 flex-shrink-0">
-          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Created: {sandbox ? formatTime(sandbox.created_at) : '—'}</span>
-          <span>Expires: {sandbox ? formatTime(sandbox.expires_at) : '—'}</span>
-          <span>Pod: {sandbox?.pod_name || '—'}</span>
-          <span className="text-zinc-600">Session = Sandbox ID</span>
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-console-border px-3 py-2 text-xs text-console-faint sm:px-5">
+          <span className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {sandbox ? formatTime(sandbox.created_at) : '—'}
+          </span>
+          <span className="hidden sm:inline">Expires: {sandbox ? formatTime(sandbox.expires_at) : '—'}</span>
+          <span className="truncate">Pod: {sandbox?.pod_name || '—'}</span>
         </div>
 
-        {/* Logs panel */}
-        <div className="border-b border-zinc-800 flex-shrink-0">
+        <div className="flex-shrink-0 border-b border-console-border">
           <button
             type="button"
             onClick={() => setLogsOpen((v) => !v)}
-            className="w-full px-5 py-2 flex items-center gap-2 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 transition-colors"
+            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-console-muted transition-colors hover:bg-console-bg hover:text-console-ink sm:px-5"
           >
-            <ScrollText className="w-3.5 h-3.5" />
+            <ScrollText className="h-3.5 w-3.5" />
             <span className="font-medium">Pod Logs</span>
-            {logsLoading && <Loader2 className="w-3 h-3 animate-spin text-zinc-500" />}
+            {logsLoading && <Loader2 className="h-3 w-3 animate-spin text-console-faint" />}
             <span className="ml-auto flex items-center gap-2">
               <span
                 role="button"
                 tabIndex={0}
                 onClick={(e) => { e.stopPropagation(); fetchLogs() }}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); fetchLogs() } }}
-                className="p-1 rounded hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300"
+                className="rounded p-1 text-console-faint hover:bg-console-border hover:text-console-ink"
                 title="Refresh logs"
               >
-                <RefreshCw className="w-3 h-3" />
+                <RefreshCw className="h-3 w-3" />
               </span>
-              {logsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {logsOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </span>
           </button>
           {logsOpen && (
-            <div className="px-5 pb-3">
+            <div className="px-3 pb-3 sm:px-5">
               {logsError ? (
-                <div className="text-xs text-red-400 py-2">{logsError}</div>
+                <div className="py-2 text-xs text-console-danger">{logsError}</div>
               ) : (
                 <pre
                   ref={logsEndRef}
-                  className="h-40 overflow-auto rounded-lg bg-black/60 border border-zinc-800 p-3 text-[11px] leading-relaxed font-mono text-zinc-300 whitespace-pre-wrap break-words"
+                  className="h-28 overflow-auto whitespace-pre-wrap break-words rounded border border-console-border bg-console-ink/95 p-3 font-mono text-[11px] leading-relaxed text-console-bg sm:h-40"
                 >
                   {logs || (logsLoading ? 'Loading logs…' : 'No logs')}
                 </pre>
@@ -232,33 +238,34 @@ export default function SandboxDetailPage({ params }: { params: { id: string } }
           )}
         </div>
 
-        {/* Chat area */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto px-6 py-6 space-y-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="mx-auto max-w-3xl space-y-4 px-3 py-5 sm:px-6 sm:py-6">
             {sandbox?.status === 'creating' && (
-              <div className="text-center py-16">
-                <Loader2 className="w-8 h-8 text-indigo-400 animate-spin mx-auto mb-3" />
-                <p className="text-zinc-400 text-sm">Provisioning sandbox environment...</p>
-                <p className="text-zinc-600 text-xs mt-1">This typically takes 30-60 seconds. Watch logs above for progress.</p>
+              <div className="py-12 text-center sm:py-16">
+                <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-console-blue" />
+                <p className="text-sm text-console-muted">Provisioning sandbox environment...</p>
+                <p className="mt-1 text-xs text-console-faint">This typically takes 30-60 seconds.</p>
               </div>
             )}
 
             {sandbox?.status === 'running' && storeMessages.length === 0 && (
-              <div className="text-center py-16">
-                <Terminal className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
-                <p className="text-zinc-400 text-sm">Sandbox is ready. Send a message to start.</p>
+              <div className="py-12 text-center sm:py-16">
+                <Terminal className="mx-auto mb-3 h-10 w-10 text-console-border" />
+                <p className="text-sm text-console-muted">Sandbox is ready. Send a message to start.</p>
               </div>
             )}
 
             {storeMessages.map((msg) => (
-              <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''} animate-fade-in`}>
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-[11px] font-bold ${
-                  msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gradient-to-br from-purple-500 to-pink-500 text-white'
+              <div key={msg.id} className={`flex gap-2 animate-fade-in sm:gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                <div className={`hidden h-7 w-7 flex-shrink-0 items-center justify-center rounded text-[11px] font-medium sm:flex ${
+                  msg.role === 'user' ? 'bg-console-blue text-white' : 'bg-console-blue-soft text-console-blue-ink'
                 }`}>
                   {msg.role === 'user' ? 'U' : 'S'}
                 </div>
-                <div className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                  msg.role === 'user' ? 'bg-indigo-600/90 text-white' : 'bg-zinc-800 text-zinc-200 border border-zinc-700/50'
+                <div className={`max-w-[92%] rounded px-3 py-2.5 text-sm leading-relaxed sm:max-w-[75%] sm:px-4 sm:py-3 ${
+                  msg.role === 'user'
+                    ? 'bg-console-blue text-white'
+                    : 'border border-console-border bg-console-surface text-console-ink shadow-console-sm'
                 }`}>
                   <div className="whitespace-pre-wrap break-words">{msg.content || '...'}</div>
                 </div>
@@ -268,11 +275,10 @@ export default function SandboxDetailPage({ params }: { params: { id: string } }
           </div>
         </div>
 
-        {/* Input */}
         {sandbox?.status !== 'terminated' && (
-          <div className="border-t border-zinc-700/50 px-6 py-4 flex-shrink-0">
-            <div className="max-w-3xl mx-auto">
-              <div className="bg-zinc-800/60 backdrop-blur rounded-2xl p-1.5 border border-zinc-700/30">
+          <div className="flex-shrink-0 border-t border-console-border bg-console-surface px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4">
+            <div className="mx-auto max-w-3xl">
+              <div className="console-card p-1.5 shadow-console">
                 <div className="flex items-end gap-2">
                   <textarea
                     value={input}
@@ -281,28 +287,25 @@ export default function SandboxDetailPage({ params }: { params: { id: string } }
                     placeholder={paired ? 'Message sandbox agent...' : 'Waiting for agent...'}
                     disabled={!paired}
                     rows={1}
-                    className="flex-1 bg-transparent px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none resize-none disabled:opacity-40"
+                    className="min-w-0 flex-1 resize-none bg-transparent px-3 py-2.5 text-sm text-console-ink placeholder:text-console-faint focus:outline-none disabled:opacity-40 sm:px-3.5"
                   />
                   {sending ? (
-                    <Loader2 className="w-4 h-4 text-indigo-400 animate-spin p-2" />
+                    <Loader2 className="m-2.5 h-4 w-4 animate-spin text-console-blue" />
                   ) : (
                     <button
                       onClick={handleSend}
                       disabled={!input.trim() || !paired}
-                      className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="rounded bg-console-blue p-2.5 text-white transition-colors hover:bg-console-blue-hover disabled:cursor-not-allowed disabled:opacity-30"
                     >
-                      <Send className="w-4 h-4" />
+                      <Send className="h-4 w-4" />
                     </button>
                   )}
                 </div>
               </div>
-              <p className="text-[10px] text-zinc-600 text-center mt-2">
-                Press <kbd className="px-1 py-0.5 rounded bg-zinc-800 text-zinc-500">Enter</kbd> to send
-              </p>
             </div>
           </div>
         )}
       </main>
-    </div>
+    </AppShell>
   )
 }

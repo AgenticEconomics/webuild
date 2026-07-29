@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Code2, Puzzle, Shield, Blocks, Loader2 } from 'lucide-react'
-import { Sidebar } from '@/components/sidebar'
+import { AppShell, NavMenuButton } from '@/components/app-shell'
 import { startNewSession } from '@/lib/start-session'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { LocaleSwitcher } from '@/components/locale-switcher'
@@ -70,56 +70,52 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex h-screen">
-      <Sidebar />
-
-      <main className="flex-1 flex flex-col overflow-y-auto relative bg-console-bg">
+    <AppShell>
+      <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain bg-console-bg">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(26,115,232,0.07),_transparent_55%),linear-gradient(180deg,_#f8fafc_0%,_#f0f4f8_100%)]"
         />
 
-        {/* Top bar */}
-        <header className="relative z-10 h-14 border-b border-console-border bg-console-surface/90 backdrop-blur-sm flex items-center px-6 flex-shrink-0">
+        <header className="relative z-10 flex h-14 flex-shrink-0 items-center gap-2 border-b border-console-border bg-console-surface/90 px-3 backdrop-blur-sm sm:px-6">
+          <NavMenuButton />
           <div className="text-sm text-console-muted">
-            <span className="text-console-ink font-medium">{t('home')}</span>
+            <span className="font-medium text-console-ink">{t('home')}</span>
           </div>
           <div className="ml-auto">
             <LocaleSwitcher />
           </div>
         </header>
 
-        <div className="relative z-10 flex-1 flex flex-col items-center px-6 pt-14 pb-10">
-          {/* Hero */}
-          <div className="animate-fade-in text-center max-w-2xl mb-7">
+        <div className="relative z-10 flex flex-1 flex-col items-center px-4 pb-10 pt-8 sm:px-6 sm:pt-14">
+          <div className="mb-6 max-w-2xl animate-fade-in text-center sm:mb-7">
             <img
               src="/brand/webuild-wordmark.png"
               alt="WeBuild"
               width={220}
               height={55}
-              className="h-[55px] w-auto mx-auto mb-5 object-contain"
+              className="mx-auto mb-4 h-10 w-auto object-contain sm:mb-5 sm:h-[55px]"
             />
-            <h2 className="text-[26px] font-normal text-console-ink tracking-tight mb-2">
+            <h2 className="mb-2 text-[22px] font-normal tracking-tight text-console-ink sm:text-[26px]">
               {t('heroBefore')}
-              <span className="text-console-blue font-medium">{t('heroHighlight')}</span>
+              <span className="font-medium text-console-blue">{t('heroHighlight')}</span>
               {t('heroAfter')}
             </h2>
-            <p className="text-console-muted text-sm leading-relaxed max-w-xl mx-auto">
+            <p className="mx-auto max-w-xl text-sm leading-relaxed text-console-muted">
               {t('heroSubtitle')}
             </p>
           </div>
 
-          {/* Quick Start Input */}
-          <div className="w-full max-w-2xl mb-8 animate-fade-in" style={{ animationDelay: '0.08s' }}>
-            <div className="console-card shadow-console p-1.5">
-              <div className="flex items-center gap-2">
+          <div className="mb-6 w-full max-w-2xl animate-fade-in sm:mb-8" style={{ animationDelay: '0.08s' }}>
+            <div className="console-card p-1.5 shadow-console">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <input
                   type="text"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder={t('promptPlaceholder')}
                   disabled={starting}
-                  className="flex-1 bg-transparent px-3.5 py-3 text-sm text-console-ink placeholder:text-console-faint focus:outline-none disabled:opacity-50"
+                  className="min-w-0 flex-1 bg-transparent px-3.5 py-3 text-sm text-console-ink placeholder:text-console-faint focus:outline-none disabled:opacity-50"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && e.currentTarget.value.trim()) {
                       startSession(e.currentTarget.value.trim())
@@ -129,44 +125,43 @@ export default function DashboardPage() {
                 <button
                   onClick={() => startSession()}
                   disabled={starting}
-                  className="console-btn-primary flex-shrink-0 disabled:opacity-50"
+                  className="console-btn-primary w-full flex-shrink-0 disabled:opacity-50 sm:w-auto"
                 >
-                  {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : t('start')}
+                  {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : t('start')}
                 </button>
               </div>
             </div>
-            <p className="mt-3 text-center text-xs text-console-faint">
+            <p className="mt-3 hidden text-center text-xs text-console-faint sm:block">
               {t('pressEnterHint')}{' '}
-              <kbd className="px-1.5 py-0.5 rounded border border-console-border bg-console-surface text-console-muted text-[10px]">
+              <kbd className="rounded border border-console-border bg-console-surface px-1.5 py-0.5 text-[10px] text-console-muted">
                 Enter
               </kbd>{' '}
               {t('toStartSession')}
             </p>
           </div>
 
-          {/* Core capabilities */}
           <div className="w-full max-w-2xl animate-fade-in" style={{ animationDelay: '0.16s' }}>
-            <h3 className="text-xs font-medium uppercase tracking-wider text-console-faint mb-3 text-center">
+            <h3 className="mb-3 text-center text-xs font-medium uppercase tracking-wider text-console-faint">
               {t('capabilitiesHeading')}
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {CAPABILITIES.map(({ icon: Icon, titleKey, descKey, promptKey, tone }) => (
                 <button
                   key={titleKey}
                   onClick={() => startSession(t(promptKey))}
                   disabled={starting}
-                  className="group flex items-start gap-3 p-3.5 text-left console-card hover:border-console-blue hover:shadow-console transition-all disabled:opacity-50"
+                  className="group console-card flex items-start gap-3 p-3.5 text-left transition-all hover:border-console-blue hover:shadow-console disabled:opacity-50"
                 >
                   <span
-                    className={`mt-0.5 w-8 h-8 rounded flex items-center justify-center flex-shrink-0 ${tone}`}
+                    className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded ${tone}`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="h-4 w-4" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-sm font-medium text-console-ink group-hover:text-console-blue-ink transition-colors">
+                    <span className="block text-sm font-medium text-console-ink transition-colors group-hover:text-console-blue-ink">
                       {t(titleKey)}
                     </span>
-                    <span className="block text-xs text-console-muted leading-snug mt-1">
+                    <span className="mt-1 block text-xs leading-snug text-console-muted">
                       {t(descKey)}
                     </span>
                   </span>
@@ -176,6 +171,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
-    </div>
+    </AppShell>
   )
 }

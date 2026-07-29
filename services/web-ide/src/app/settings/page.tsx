@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Sidebar } from '@/components/sidebar'
+import { AppShell, NavMenuButton } from '@/components/app-shell'
 import { Server, Key, Save, Check, Wifi, WifiOff, LogIn, Loader2, Mail } from 'lucide-react'
 import { useSessionStore, defaultWsUrl } from '@/stores/session-store'
 import { useI18n } from '@/lib/i18n'
@@ -72,21 +72,20 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex h-screen">
-      <Sidebar />
-
-      <main className="flex-1 overflow-y-auto bg-console-bg">
-        <header className="h-14 border-b border-console-border bg-console-surface flex items-center px-6 sticky top-0 z-10">
+    <AppShell>
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-console-bg">
+        <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b border-console-border bg-console-surface px-3 sm:px-6">
+          <NavMenuButton />
           <h1 className="text-sm font-medium text-console-ink">{t('settings')}</h1>
           <div className="ml-auto">
             <LocaleSwitcher />
           </div>
         </header>
 
-        <div className="max-w-2xl mx-auto px-6 py-8">
+        <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
           <div className="animate-fade-in">
-            <h2 className="text-2xl font-normal text-console-ink mb-1">{t('settings')}</h2>
-            <p className="text-console-muted text-sm mb-6">
+            <h2 className="mb-1 text-xl font-normal text-console-ink sm:text-2xl">{t('settings')}</h2>
+            <p className="mb-6 text-sm text-console-muted">
               {t('settingsDesc')}
             </p>
 
@@ -223,7 +222,7 @@ export default function SettingsPage() {
             {/* Save */}
             <button
               onClick={handleSave}
-              className={`console-btn-primary ${
+              className={`console-btn-primary w-full sm:w-auto ${
                 saved ? '!bg-console-success hover:!bg-console-success' : ''
               }`}
             >
@@ -233,6 +232,6 @@ export default function SettingsPage() {
           </div>
         </div>
       </main>
-    </div>
+    </AppShell>
   )
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Plus, Box, Loader2, Trash2, ExternalLink, Clock } from 'lucide-react'
-import { Sidebar } from '@/components/sidebar'
+import { AppShell, NavMenuButton } from '@/components/app-shell'
 import { listSandboxes, createSandbox, terminateSandbox, type Sandbox } from '@/lib/gateway-api'
 import { createSession } from '@/lib/relay-api'
 import { useSessionStore } from '@/stores/session-store'
@@ -33,7 +33,6 @@ export default function SandboxesPage() {
   const handleCreate = async () => {
     setCreating(true)
     try {
-      // Session and sandbox share the same id so the agent joins the chat session
       const session = await createSession()
       const sessionId = session.session_id
       useSessionStore.getState().upsertSession({
@@ -76,40 +75,44 @@ export default function SandboxesPage() {
   }
 
   return (
-    <div className="flex h-screen">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-8 py-10">
-          <div className="flex items-center justify-between mb-8">
+    <AppShell>
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-console-bg">
+        <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b border-console-border bg-console-surface px-3 sm:px-6">
+          <NavMenuButton />
+          <h1 className="text-sm font-medium text-console-ink">Sandboxes</h1>
+        </header>
+
+        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-8 sm:py-10">
+          <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-white">Cloud Sandboxes</h1>
-              <p className="text-sm text-zinc-400 mt-1">Isolated cloud environments powered by ACS Serverless</p>
+              <h1 className="text-xl font-semibold text-console-ink sm:text-2xl">Cloud Sandboxes</h1>
+              <p className="mt-1 text-sm text-console-muted">Isolated cloud environments powered by ACS Serverless</p>
             </div>
             <button
               onClick={handleCreate}
               disabled={creating}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50"
+              className="console-btn-primary w-full disabled:opacity-50 sm:w-auto"
             >
-              {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               New Sandbox
             </button>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400">
+            <div className="mb-4 rounded border border-console-danger/30 bg-console-danger-soft p-3 text-sm text-console-danger">
               {error}
             </div>
           )}
 
           {loading ? (
             <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-6 h-6 text-zinc-500 animate-spin" />
+              <Loader2 className="h-6 w-6 animate-spin text-console-faint" />
             </div>
           ) : sandboxes.length === 0 ? (
-            <div className="text-center py-20">
-              <Box className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
-              <p className="text-zinc-500 text-sm">No sandboxes yet</p>
-              <p className="text-zinc-600 text-xs mt-1">Create one to get started</p>
+            <div className="py-20 text-center">
+              <Box className="mx-auto mb-3 h-12 w-12 text-console-border" />
+              <p className="text-sm text-console-muted">No sandboxes yet</p>
+              <p className="mt-1 text-xs text-console-faint">Create one to get started</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -117,32 +120,49 @@ export default function SandboxesPage() {
                 <Link
                   key={sb.id}
                   href={`/sandboxes/${sb.id}`}
-                  className="block p-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-xl transition-all group"
+                  className="console-card group block p-4 transition-all hover:border-console-blue hover:shadow-console"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-                      <Box className="w-5 h-5 text-indigo-400" />
+                  <div className="flex items-start gap-3 sm:items-center">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded bg-console-blue-soft">
+                      <Box className="h-5 w-5 text-console-blue" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-white font-mono">{sb.id}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(sb.status)}`}>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate font-mono text-sm font-medium text-console-ink">{sb.id}</span>
+                        <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${getStatusColor(sb.status)}`}>
                           {sb.status}
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-zinc-500">
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-console-faint">
                         <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
+                          <Clock className="h-3 w-3" />
                           {formatTime(sb.created_at)}
                         </span>
-                        <span>Pod: {sb.pod_name || '—'}</span>
+                        <span className="truncate">Pod: {sb.pod_name || '—'}</span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2 sm:hidden">
+                        <Link
+                          href={`/sessions/${sb.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded border border-console-border px-2 py-1 text-[11px] text-console-muted"
+                        >
+                          Session
+                        </Link>
+                        {sb.status !== 'terminated' && (
+                          <button
+                            onClick={(e) => handleTerminate(sb.id, e)}
+                            className="rounded border border-console-border px-2 py-1 text-[11px] text-console-danger"
+                          >
+                            Terminate
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="hidden items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100 sm:flex">
                       <Link
                         href={`/sessions/${sb.id}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="px-2 py-1 rounded-lg text-[11px] text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
+                        className="rounded px-2 py-1 text-[11px] text-console-muted transition-colors hover:bg-console-bg hover:text-console-ink"
                         title="Open linked session"
                       >
                         Session
@@ -150,12 +170,12 @@ export default function SandboxesPage() {
                       {sb.status !== 'terminated' && (
                         <button
                           onClick={(e) => handleTerminate(sb.id, e)}
-                          className="p-2 rounded-lg hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition-colors"
+                          className="rounded p-2 text-console-muted transition-colors hover:bg-console-danger-soft hover:text-console-danger"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       )}
-                      <ExternalLink className="w-4 h-4 text-zinc-500" />
+                      <ExternalLink className="h-4 w-4 text-console-faint" />
                     </div>
                   </div>
                 </Link>
@@ -164,6 +184,6 @@ export default function SandboxesPage() {
           )}
         </div>
       </main>
-    </div>
+    </AppShell>
   )
 }

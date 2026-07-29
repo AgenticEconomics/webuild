@@ -74,6 +74,8 @@ const messages = {
     language: 'Language',
     langEn: 'English',
     langZh: '中文',
+    openMenu: 'Open menu',
+    closeMenu: 'Close menu',
   },
   zh: {
     tagline: 'Agentics Assistant',
@@ -134,6 +136,8 @@ const messages = {
     language: '语言',
     langEn: 'English',
     langZh: '中文',
+    openMenu: '打开菜单',
+    closeMenu: '关闭菜单',
   },
 } as const
 
