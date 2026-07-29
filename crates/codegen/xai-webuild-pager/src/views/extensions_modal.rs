@@ -2583,7 +2583,15 @@ fn skill_source_str(skill: &SkillInfo) -> String {
                 }
             }
             xai_webuild_tools::types::config_source::ConfigSource::Plugin { plugin_name, .. } => {
-                format!("plugin: {}", plugin_name)
+                // Keep the right-side source compact so long plugin ids don't
+                // crowd out the skill name in the Skills tab.
+                const MAX_PLUGIN_CHARS: usize = 18;
+                if plugin_name.chars().count() > MAX_PLUGIN_CHARS {
+                    let truncated: String = plugin_name.chars().take(MAX_PLUGIN_CHARS - 1).collect();
+                    format!("plugin: {truncated}…")
+                } else {
+                    format!("plugin: {plugin_name}")
+                }
             }
             _ => format!("{:?}", skill.scope).to_lowercase(),
         }

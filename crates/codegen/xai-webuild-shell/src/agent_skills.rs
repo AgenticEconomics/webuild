@@ -227,19 +227,44 @@ pub fn ensure_agent_skills(webuild_home: &Path) {
         )
         .is_none()
     };
-    if !need_install {
-        return;
-    }
 
-    match install_agent_skills_plugin(&dest_root, &dest_str) {
-        Ok(repo_key) => {
+    let repo_key = if need_install {
+        match install_agent_skills_plugin(&dest_root, &dest_str) {
+            Ok(repo_key) => {
+                tracing::info!(
+                    repo_key = %repo_key,
+                    "installed/refreshed WeBuild Agent Skills (default-skills)"
+                );
+                Some(repo_key)
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "failed to install agent skills plugin");
+                None
+            }
+        }
+    } else {
+        // Already installed — still resolve repo key so we can ensure it's enabled.
+        let reg = InstallRegistry::load();
+        installer::find_installed_marketplace_plugin(
+            &reg,
+            &dest_str,
+            AGENT_SKILLS_PLUGIN_SUBDIR,
+        )
+        .map(|(key, _)| key)
+    };
+
+    // User-scope marketplace plugins are disabled by default until listed in
+    // `[plugins].enabled`. Without this, `/skills` only shows bundled skills.
+    if let Some(repo_key) = repo_key {
+        let (names, warnings) = crate::config::post_install_plugin(&repo_key);
+        if !names.is_empty() {
             tracing::info!(
-                repo_key = %repo_key,
-                "installed/refreshed WeBuild Agent Skills (default-skills)"
+                plugins = ?names,
+                "enabled WeBuild Agent Skills plugin(s)"
             );
         }
-        Err(e) => {
-            tracing::warn!(error = %e, "failed to install agent skills plugin");
+        for w in warnings {
+            tracing::warn!(warning = %w, "agent skills auto-enable warning");
         }
     }
 }

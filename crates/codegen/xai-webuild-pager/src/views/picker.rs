@@ -804,11 +804,21 @@ pub fn render_picker_row(
     } else {
         row.badge.width() as u16 + 1
     }; // +1 space before badge
-    let right_width = row.right_label.width() as u16;
+    // Keep a minimum left-label width so long right labels (e.g.
+    // `(plugin: webuild-agent-skills-default)`) cannot erase the skill name.
+    const MIN_LABEL_WIDTH: u16 = 16;
+    let available_for_text = width.saturating_sub(trailing_pad + badge_width + prefix_width);
+    let mut right_width = row.right_label.width() as u16;
     let gap = if right_width > 0 { 2u16 } else { 0 };
-    let max_label_width = width
-        .saturating_sub(right_width + gap + trailing_pad + badge_width + prefix_width)
-        as usize;
+    let max_right = available_for_text.saturating_sub(MIN_LABEL_WIDTH.saturating_add(gap));
+    let truncated_right = if right_width > max_right {
+        right_width = max_right;
+        truncate_str(row.right_label, max_right as usize)
+    } else {
+        row.right_label.to_string()
+    };
+    let gap = if right_width > 0 { 2u16 } else { 0 };
+    let max_label_width = available_for_text.saturating_sub(right_width + gap) as usize;
     let truncated_label = truncate_str(row.label, max_label_width);
 
     // Render as separate spans: indent, fold indicator (shared), label.
@@ -887,7 +897,7 @@ pub fn render_picker_row(
         buf.set_span(
             right_x,
             y,
-            &Span::styled(row.right_label, right_style),
+            &Span::styled(&truncated_right, right_style),
             right_width,
         );
     }
