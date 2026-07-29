@@ -56,7 +56,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const {
     messages, toolCalls, activeSessionId, isConnected, connectedSessionId,
     acpReady, agentConnected,
-    connect, sendMessage, cancelCurrent, setActiveSession, upsertSession, loadHistory, historyLoading,
+    connect, sendMessage, cancelCurrent, setActiveSession, loadHistory, historyLoading,
   } = useSessionStore()
   const { t } = useI18n()
   const [input, setInput] = useState('')
@@ -71,10 +71,9 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     if (params.id) {
       setActiveSession(params.id)
-      upsertSession({ sessionId: params.id, status: 'active', sandboxId: params.id })
       loadHistory(params.id)
     }
-  }, [params.id, setActiveSession, upsertSession, loadHistory])
+  }, [params.id, setActiveSession, loadHistory])
 
   useEffect(() => {
     if (!params.id) return

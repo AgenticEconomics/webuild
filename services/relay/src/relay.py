@@ -95,6 +95,44 @@ async def _wait_for_pair(
     return False
 
 
+def _is_service_principal(user_id: str) -> bool:
+    return user_id in ("sandbox-agent", "agent", "")
+
+
+async def _reject_ws(ws: WebSocket, detail: str, *, accepted: bool) -> None:
+    if not accepted:
+        await ws.accept()
+    await ws.send_text(make_error_response(None, INTERNAL_ERROR, detail))
+    await ws.close(code=status.WS_1008_POLICY_VIOLATION)
+
+
+async def _browser_may_join(session_id: str, user_id: str, pair: SessionPair | None) -> str | None:
+    """Return an error detail if this browser user must not join the session."""
+    if pair is not None:
+        owner = pair.user_id
+        if _is_service_principal(owner):
+            return None
+        if owner != user_id:
+            return "Session belongs to another user"
+        return None
+
+    if _store is None:
+        return None
+    try:
+        persisted = await _store.get_session(session_id)
+    except Exception:
+        logger.exception("ws.persist_get_failed", session_id=session_id)
+        return None
+    if not persisted:
+        return None
+    owner = str(persisted.get("user_id") or "")
+    if _is_service_principal(owner):
+        return None
+    if owner != user_id:
+        return "Session belongs to another user"
+    return None
+
+
 @ws_router.websocket("/ws")
 async def websocket_endpoint(
     ws: WebSocket,
@@ -176,6 +214,19 @@ async def websocket_endpoint(
     pair = await _session_manager.get_session(session_id)
 
     if role == "browser":
+        # Enforce per-user isolation: browsers may only join their own sessions
+        # (service principals like sandbox-agent can be adopted by the real user).
+        denied = await _browser_may_join(session_id, user_id, pair)
+        if denied:
+            logger.warning(
+                "ws.ownership_denied",
+                session_id=session_id,
+                user_id=user_id,
+                detail=denied,
+            )
+            await _reject_ws(ws, denied, accepted=True)
+            return
+
         if pair is None:
             # Auto-create session for browser
             pair = await _session_manager.create_session(
@@ -184,6 +235,16 @@ async def websocket_endpoint(
             if _store:
                 try:
                     await _store.create_session(session_id, user_id)
+                except PermissionError as exc:
+                    await _session_manager.remove_session(session_id)
+                    logger.warning(
+                        "ws.ownership_denied",
+                        session_id=session_id,
+                        user_id=user_id,
+                        detail=str(exc),
+                    )
+                    await _reject_ws(ws, "Session belongs to another user", accepted=True)
+                    return
                 except Exception:
                     # Already persisted (e.g. reopening an old session)
                     logger.info("ws.persist_create_skipped", session_id=session_id)

@@ -109,11 +109,23 @@ class SessionStore:
             existing = await db.execute(
                 select(RelaySession).where(RelaySession.id == session_id)
             )
-            if existing.scalar_one_or_none() is not None:
+            rec = existing.scalar_one_or_none()
+            if rec is not None:
+                # Never steal ownership from another real user
+                if rec.user_id != uid:
+                    logger.warning(
+                        "persist.session_ownership_conflict",
+                        session_id=session_id,
+                        existing_user=str(rec.user_id),
+                        requested_user=user_id,
+                    )
+                    raise PermissionError(
+                        f"Session {session_id} belongs to another user"
+                    )
                 await db.execute(
                     update(RelaySession)
                     .where(RelaySession.id == session_id)
-                    .values(user_id=uid, status="created", updated_at=_utcnow(), closed_at=None)
+                    .values(status="created", updated_at=_utcnow(), closed_at=None)
                 )
                 await db.commit()
                 logger.info("persist.session_reopened", session_id=session_id)

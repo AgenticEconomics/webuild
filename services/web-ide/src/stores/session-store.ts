@@ -60,6 +60,8 @@ interface SessionState {
   removeSession: (sessionId: string) => Promise<void>;
   upsertSession: (session: SessionInfo) => void;
   setActiveSession: (sessionId: string) => void;
+  /** Clear in-memory sessions/messages (e.g. after login as a different user) */
+  resetLocalState: () => void;
 }
 
 let msgCounter = 0;
@@ -366,22 +368,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         status: s.status,
         sandboxId: s.session_id,
       }));
-      set((state) => {
-        const byId = new Map<string, SessionInfo>();
-        for (const s of mapped) byId.set(s.sessionId, s);
-        for (const s of state.sessions) {
-          const existing = byId.get(s.sessionId);
-          if (!existing) byId.set(s.sessionId, s);
-          else if (!existing.title && s.title) byId.set(s.sessionId, { ...existing, title: s.title });
-        }
-        return {
-          sessions: Array.from(byId.values()),
-          sessionsLoaded: true,
-        };
+      // Replace — never merge leftover sessions from a previous logged-in user
+      set({
+        sessions: mapped,
+        sessionsLoaded: true,
       });
     } catch (e) {
       console.warn("Failed to load sessions from relay:", e);
-      set({ sessionsLoaded: true });
+      set({ sessions: [], sessionsLoaded: true });
     }
   },
 
@@ -403,7 +397,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     } catch (e) {
       console.warn("Failed to load session history:", e);
       if (epoch === historyEpoch && get().activeSessionId === sessionId) {
-        set({ historyLoading: false });
+        // Ownership/auth failure — do not keep another user's bubbles on screen
+        set({ messages: [], toolCalls: [], historyLoading: false });
       }
     }
   },
@@ -447,7 +442,32 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         toolCalls: [],
       };
     });
-    get().upsertSession({ sessionId, status: "active", sandboxId: sessionId });
+  },
+
+  resetLocalState: () => {
+    const { client } = get();
+    if (client) {
+      try {
+        client.disconnect();
+      } catch {
+        /* ignore */
+      }
+    }
+    ++connectEpoch;
+    ++historyEpoch;
+    set({
+      client: null,
+      isConnected: false,
+      connectedSessionId: null,
+      acpReady: false,
+      agentConnected: false,
+      sessions: [],
+      activeSessionId: null,
+      messages: [],
+      toolCalls: [],
+      sessionsLoaded: false,
+      historyLoading: false,
+    });
   },
 }));
 

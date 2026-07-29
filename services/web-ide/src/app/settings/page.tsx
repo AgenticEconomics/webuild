@@ -10,7 +10,7 @@ import { LocaleSwitcher } from '@/components/locale-switcher'
 const DEFAULT_INVITE_EMAIL = 'jerry.zhang@datoms.cn'
 
 export default function SettingsPage() {
-  const { isConnected } = useSessionStore()
+  const { isConnected, resetLocalState, loadSessions } = useSessionStore()
   const { t } = useI18n()
   const [wsUrl, setWsUrl] = useState(
     typeof window !== 'undefined'
@@ -55,6 +55,9 @@ export default function SettingsPage() {
       setToken(data.access_token)
       setLoginPass('')
       setLoginUser('')
+      // Drop any sessions/messages cached from a previous account
+      resetLocalState()
+      await loadSessions()
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (e: any) {
