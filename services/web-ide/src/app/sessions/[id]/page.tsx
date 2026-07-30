@@ -158,12 +158,14 @@ export default function SessionPage({ params }: { params: { id: string } }) {
       msg = msg ? `${msg}\n\n${hint}` : hint
     }
 
+    // Clear composer immediately (same as input) — files already landed in inbox/
     if (!text) setInput('')
+    setUploadedPaths([])
+    setUploadError('')
     setSending(true)
     setSendError('')
     try {
       await sendMessage(msg)
-      setUploadedPaths([])
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : 'Send failed'
       setSendError(errMsg)
