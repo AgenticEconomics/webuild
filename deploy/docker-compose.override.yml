@@ -60,7 +60,7 @@ services:
       - RELAY_URL=wss://webuild.datoms.cn/ws/relay
       - RELAY_INTERNAL_TOKEN=webuild-internal-agent-token-2026
       - HUB_WS_URL=wss://webuild.datoms.cn/ws/hub
-      - SANDBOX_IMAGE=${SANDBOX_IMAGE:-xingu-aliyun-acr-registry.cn-hangzhou.cr.aliyuncs.com/webuild/sandbox:latest}
+      - SANDBOX_IMAGE=${SANDBOX_IMAGE:-xingu-aliyun-acr-registry.cn-hangzhou.cr.aliyuncs.com/webuild/sandbox:v0.7.0}
       - SANDBOX_AGENT=${SANDBOX_AGENT:-webuild}
       - WEBUILD_YOLO=1
     volumes:
