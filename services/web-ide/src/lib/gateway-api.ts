@@ -84,3 +84,70 @@ export async function terminateSandbox(id: string): Promise<void> {
   })
   if (!res.ok) throw new Error(`Failed to terminate sandbox: ${res.status}`)
 }
+
+export interface SandboxFileInfo {
+  path: string
+  size: number
+  mtime: number
+}
+
+export async function uploadSandboxFiles(
+  sandboxId: string,
+  files: File[],
+  dest = 'inbox',
+): Promise<string[]> {
+  const form = new FormData()
+  for (const f of files) {
+    form.append('files', f, f.name)
+  }
+  const token =
+    typeof window !== 'undefined' ? localStorage.getItem('webuild_token') || '' : ''
+  const res = await fetch(
+    `${GATEWAY_BASE}/sandboxes/${sandboxId}/files?dest=${encodeURIComponent(dest)}`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    },
+  )
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`Upload failed: ${res.status}${detail ? ` ${detail}` : ''}`)
+  }
+  const data = await res.json()
+  return data.uploaded || []
+}
+
+export async function listSandboxFiles(
+  sandboxId: string,
+  prefix = 'outputs',
+): Promise<SandboxFileInfo[]> {
+  const res = await fetch(
+    `${GATEWAY_BASE}/sandboxes/${sandboxId}/files?prefix=${encodeURIComponent(prefix)}`,
+    { headers: getAuthHeaders() },
+  )
+  if (!res.ok) throw new Error(`Failed to list files: ${res.status}`)
+  const data = await res.json()
+  return data.files || []
+}
+
+export async function downloadSandboxFile(
+  sandboxId: string,
+  path: string,
+): Promise<void> {
+  const res = await fetch(
+    `${GATEWAY_BASE}/sandboxes/${sandboxId}/files/content?path=${encodeURIComponent(path)}`,
+    { headers: getAuthHeaders() },
+  )
+  if (!res.ok) throw new Error(`Download failed: ${res.status}`)
+  const blob = await res.blob()
+  const name = path.split('/').pop() || 'download'
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}

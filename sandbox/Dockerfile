@@ -31,6 +31,7 @@ RUN pip3 install --no-cache-dir --break-system-packages \
 
 COPY agent/sandbox_agent.py /opt/sandbox/sandbox_agent.py
 COPY scripts/sandbox-init.sh /opt/sandbox/sandbox-init.sh
+COPY workspace/WORKSPACE.md /opt/sandbox/WORKSPACE.md
 RUN chmod +x /opt/sandbox/sandbox-init.sh
 
 # Full WeBuild CLI binary (built by CI as webuild-linux-x86_64)

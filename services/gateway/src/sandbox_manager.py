@@ -285,6 +285,64 @@ class SandboxManager:
         return await asyncio.to_thread(self._k8s.get_pod_logs, sandbox_id, tail_lines)
 
     # ------------------------------------------------------------------
+    # Workspace files (Phase VII)
+    # ------------------------------------------------------------------
+
+    MAX_UPLOAD_FILE_BYTES = 32 * 1024 * 1024
+    MAX_UPLOAD_TOTAL_BYTES = 64 * 1024 * 1024
+    MAX_UPLOAD_FILES = 20
+
+    async def _require_running_pod(self, sandbox_id: str) -> SandboxResponse:
+        sandbox = await self.get_sandbox(sandbox_id)
+        if sandbox.status != SandboxStatus.running:
+            raise ValueError(f"Sandbox is not running (status={sandbox.status.value})")
+        phase = sandbox.pod_phase
+        if phase and phase not in ("Running",):
+            # Allow missing phase (race) but reject known bad phases
+            if phase in ("Failed", "Succeeded", "Unknown"):
+                raise ValueError(f"Sandbox pod not ready (phase={phase})")
+        return sandbox
+
+    async def upload_files(
+        self,
+        sandbox_id: str,
+        files: list[tuple[str, bytes]],
+        dest: str = "inbox",
+    ) -> list[str]:
+        """Upload files into /workspace/<dest>. Returns relative paths."""
+        if not files:
+            raise ValueError("No files provided")
+        if len(files) > self.MAX_UPLOAD_FILES:
+            raise ValueError(f"Too many files (max {self.MAX_UPLOAD_FILES})")
+        total = sum(len(b) for _, b in files)
+        if total > self.MAX_UPLOAD_TOTAL_BYTES:
+            raise ValueError(f"Total upload too large (max {self.MAX_UPLOAD_TOTAL_BYTES} bytes)")
+        for name, data in files:
+            if len(data) > self.MAX_UPLOAD_FILE_BYTES:
+                raise ValueError(
+                    f"File {name!r} exceeds {self.MAX_UPLOAD_FILE_BYTES} byte limit"
+                )
+
+        await self._require_running_pod(sandbox_id)
+
+        uploaded: list[str] = []
+        for name, data in files:
+            path = await asyncio.to_thread(
+                self._k8s.upload_file_to_pod, sandbox_id, dest, name, data
+            )
+            uploaded.append(path)
+            logger.info("sandbox.file_uploaded", sandbox_id=sandbox_id, path=path, size=len(data))
+        return uploaded
+
+    async def list_files(self, sandbox_id: str, prefix: str = "outputs") -> list[dict]:
+        await self._require_running_pod(sandbox_id)
+        return await asyncio.to_thread(self._k8s.list_files_in_pod, sandbox_id, prefix)
+
+    async def download_file(self, sandbox_id: str, rel_path: str) -> tuple[str, bytes]:
+        await self._require_running_pod(sandbox_id)
+        return await asyncio.to_thread(self._k8s.download_file_from_pod, sandbox_id, rel_path)
+
+    # ------------------------------------------------------------------
     # TTL enforcement background task
     # ------------------------------------------------------------------
 

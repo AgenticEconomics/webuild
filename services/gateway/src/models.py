@@ -52,3 +52,21 @@ class SandboxResponse(BaseModel):
 class SandboxListResponse(BaseModel):
     sandboxes: list[SandboxResponse]
     total: int
+
+
+class SandboxFileInfo(BaseModel):
+    path: str
+    size: int
+    mtime: float
+
+
+class SandboxFileListResponse(BaseModel):
+    files: list[SandboxFileInfo]
+    prefix: str
+    total: int
+
+
+class SandboxUploadResponse(BaseModel):
+    uploaded: list[str]
+    dest: str
+    count: int

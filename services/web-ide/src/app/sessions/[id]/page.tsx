@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Send, Square, Wrench, AlertCircle, CheckCircle2, Clock, Loader2, Box } from 'lucide-react'
+import { Send, Square, Wrench, AlertCircle, CheckCircle2, Clock, Loader2, Box, Paperclip, X } from 'lucide-react'
 import { AppShell, NavMenuButton } from '@/components/app-shell'
 import { LocaleSwitcher } from '@/components/locale-switcher'
+import { WorkspaceOutputsPanel } from '@/components/workspace-outputs-panel'
 import { useI18n } from '@/lib/i18n'
 import { useSessionStore, type Message, type ToolCall, defaultWsUrl } from '@/stores/session-store'
-import { getSandbox, type Sandbox } from '@/lib/gateway-api'
+import { getSandbox, uploadSandboxFiles, type Sandbox } from '@/lib/gateway-api'
 import { MessageContent } from '@/components/message-content'
 
 function MessageBubble({ message }: { message: Message }) {
@@ -64,8 +65,12 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const [sendError, setSendError] = useState('')
   const [sandbox, setSandbox] = useState<Sandbox | null>(null)
   const [sandboxError, setSandboxError] = useState('')
+  const [uploadedPaths, setUploadedPaths] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const initialPromptSent = useRef(false)
 
   useEffect(() => {
@@ -141,19 +146,52 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   }, [params.id, acpReady, connectedSessionId])
 
   const handleSend = async (text?: string) => {
-    const msg = text || input.trim()
-    if (!msg || sending) return
+    let msg = (text || input).trim()
+    if (!msg && uploadedPaths.length === 0) return
+    if (sending) return
+
+    if (uploadedPaths.length > 0) {
+      const list = uploadedPaths.map((p) => `- /workspace/${p}`).join('\n')
+      const hint =
+        `[Uploaded files in /workspace/inbox — please process with tools/skills; ` +
+        `put final deliverables under /workspace/outputs/]\n${list}`
+      msg = msg ? `${msg}\n\n${hint}` : hint
+    }
+
     if (!text) setInput('')
     setSending(true)
     setSendError('')
     try {
       await sendMessage(msg)
+      setUploadedPaths([])
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : 'Send failed'
       setSendError(errMsg)
       console.error('send failed:', e)
     } finally {
       setSending(false)
+    }
+  }
+
+  const handleUpload = async (fileList: FileList | null) => {
+    if (!fileList?.length || !params.id) return
+    if (sandbox?.status !== 'running') {
+      setUploadError(t('outputsNeedSandbox'))
+      return
+    }
+    setUploading(true)
+    setUploadError('')
+    try {
+      const paths = await uploadSandboxFiles(params.id, Array.from(fileList), 'inbox')
+      setUploadedPaths((prev) => {
+        const set = new Set([...prev, ...paths])
+        return Array.from(set)
+      })
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : t('uploadFailed'))
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -167,6 +205,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const sandboxProvisioning = sandbox?.status === 'creating'
   const paired = isConnected && connectedSessionId === params.id
   const canSend = paired && acpReady && !sandboxProvisioning
+  const sandboxRunning = sandbox?.status === 'running'
 
   return (
     <AppShell>
@@ -292,10 +331,55 @@ export default function SessionPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
+        <WorkspaceOutputsPanel sandboxId={params.id} enabled={sandboxRunning} />
+
         <div className="flex-shrink-0 border-t border-console-border bg-console-surface px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4">
           <div className="mx-auto max-w-3xl">
+            {(uploadedPaths.length > 0 || uploadError) && (
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                {uploadedPaths.map((p) => (
+                  <span
+                    key={p}
+                    className="inline-flex max-w-full items-center gap-1 rounded border border-console-border bg-console-bg px-2 py-1 text-[11px] text-console-ink"
+                  >
+                    <span className="truncate font-mono" title={p}>
+                      {p}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={t('removeUpload')}
+                      onClick={() => setUploadedPaths((prev) => prev.filter((x) => x !== p))}
+                      className="text-console-faint hover:text-console-danger"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+                {uploadError && <span className="text-[11px] text-console-danger">{uploadError}</span>}
+              </div>
+            )}
             <div className="console-card p-1.5 shadow-console">
               <div className="flex items-end gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleUpload(e.target.files)}
+                />
+                <button
+                  type="button"
+                  title={t('uploadFiles')}
+                  disabled={!sandboxRunning || uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded p-2.5 text-console-muted transition-colors hover:bg-console-bg hover:text-console-ink disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  {uploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Paperclip className="h-4 w-4" />
+                  )}
+                </button>
                 <textarea
                   ref={textareaRef}
                   value={input}
@@ -322,7 +406,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                 ) : (
                   <button
                     onClick={() => handleSend()}
-                    disabled={!input.trim() || !canSend}
+                    disabled={(!input.trim() && uploadedPaths.length === 0) || !canSend}
                     className="rounded bg-console-blue p-2.5 text-white transition-colors hover:bg-console-blue-hover disabled:cursor-not-allowed disabled:opacity-30"
                   >
                     <Send className="h-4 w-4" />

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
 
@@ -302,6 +303,201 @@ class K8sClient:
             if e.status == 404:
                 return ""
             raise
+
+    # ------------------------------------------------------------------
+    # Pod exec / file transfer (Phase VII)
+    # ------------------------------------------------------------------
+
+    def exec_in_pod(
+        self,
+        sandbox_id: str,
+        command: list[str],
+        *,
+        stdin_data: bytes | None = None,
+        timeout_seconds: int = 120,
+    ) -> tuple[int, bytes, bytes]:
+        """Run a command in the sandbox pod. Returns (exit_code, stdout, stderr)."""
+        from kubernetes.stream import stream
+
+        pod_name = f"sandbox-{sandbox_id}"
+        resp = stream(
+            self.core_v1.connect_get_namespaced_pod_exec,
+            pod_name,
+            SANDBOX_NAMESPACE,
+            command=command,
+            stderr=True,
+            stdin=stdin_data is not None,
+            stdout=True,
+            tty=False,
+            _preload_content=False,
+        )
+        stdout_chunks: list[bytes] = []
+        stderr_chunks: list[bytes] = []
+        try:
+            import time
+
+            deadline = time.time() + timeout_seconds
+            if stdin_data is not None:
+                # Chunk large payloads
+                offset = 0
+                chunk_size = 64 * 1024
+                while offset < len(stdin_data):
+                    resp.write_stdin(stdin_data[offset : offset + chunk_size])
+                    offset += chunk_size
+                try:
+                    resp.write_stdin("")  # signal end on some client versions
+                except Exception:
+                    pass
+
+            while resp.is_open():
+                if time.time() > deadline:
+                    raise TimeoutError(f"exec timed out after {timeout_seconds}s")
+                resp.update(timeout=1)
+                if resp.peek_stdout():
+                    chunk = resp.read_stdout()
+                    if chunk:
+                        stdout_chunks.append(
+                            chunk if isinstance(chunk, bytes) else chunk.encode("utf-8", "replace")
+                        )
+                if resp.peek_stderr():
+                    chunk = resp.read_stderr()
+                    if chunk:
+                        stderr_chunks.append(
+                            chunk if isinstance(chunk, bytes) else chunk.encode("utf-8", "replace")
+                        )
+        finally:
+            try:
+                resp.close()
+            except Exception:
+                pass
+
+        code = 0
+        try:
+            code = int(getattr(resp, "returncode", 0) or 0)
+        except Exception:
+            code = 0
+        out = b"".join(stdout_chunks)
+        err = b"".join(stderr_chunks)
+        return code, out, err
+
+    def ensure_workspace_layout(self, sandbox_id: str) -> None:
+        """Idempotently create Phase VII workspace directories (+ WORKSPACE.md if missing)."""
+        from src.pathutil import WORKSPACE_SUBDIRS
+
+        dirs = " ".join(f"/workspace/{d}" for d in WORKSPACE_SUBDIRS)
+        cmd = [
+            "/bin/bash",
+            "-lc",
+            f"mkdir -p {dirs} && "
+            f"if [ -f /opt/sandbox/WORKSPACE.md ] && [ ! -f /workspace/WORKSPACE.md ]; then "
+            f"cp /opt/sandbox/WORKSPACE.md /workspace/WORKSPACE.md; fi",
+        ]
+        code, _out, err = self.exec_in_pod(sandbox_id, cmd)
+        if code not in (0, None) and err:
+            logger.warning(
+                "ensure_workspace_layout_warn",
+                sandbox_id=sandbox_id,
+                code=code,
+                stderr=err.decode("utf-8", "replace")[:500],
+            )
+
+    def upload_file_to_pod(
+        self,
+        sandbox_id: str,
+        dest_dir: str,
+        filename: str,
+        data: bytes,
+    ) -> str:
+        """Upload a single file into /workspace/<dest_dir>/<filename> via tar stdin.
+
+        Returns the workspace-relative path (posix).
+        """
+        import io
+        import tarfile
+
+        from src.pathutil import resolve_under_workspace, sanitize_filename, validate_upload_dest
+
+        dest = validate_upload_dest(dest_dir)
+        safe_name = sanitize_filename(filename)
+        resolve_under_workspace(dest, safe_name)
+
+        self.ensure_workspace_layout(sandbox_id)
+
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w") as tar:
+            info = tarfile.TarInfo(name=safe_name)
+            info.size = len(data)
+            info.mode = 0o644
+            tar.addfile(info, io.BytesIO(data))
+        payload = buf.getvalue()
+
+        # Fixed argv — dest is allowlisted
+        command = ["tar", "-C", f"/workspace/{dest}", "-xf", "-"]
+        code, _out, err = self.exec_in_pod(sandbox_id, command, stdin_data=payload)
+        if code not in (0, None):
+            detail = err.decode("utf-8", "replace")[:500]
+            raise RuntimeError(f"upload failed (exit={code}): {detail}")
+        return f"{dest}/{safe_name}"
+
+    def list_files_in_pod(self, sandbox_id: str, prefix: str) -> list[dict]:
+        """List files under /workspace/<prefix>. Returns [{path,size,mtime}]."""
+        from src.pathutil import validate_list_prefix
+
+        rel = validate_list_prefix(prefix)
+        self.ensure_workspace_layout(sandbox_id)
+        # %P = path relative to search root; size; mtime epoch
+        script = (
+            f'root="/workspace/{rel}"; '
+            f'if [ ! -d "$root" ]; then exit 0; fi; '
+            f'find "$root" -type f -printf "%P\\t%s\\t%T@\\n" 2>/dev/null | head -n 2000'
+        )
+        code, out, err = self.exec_in_pod(sandbox_id, ["/bin/bash", "-lc", script])
+        if code not in (0, None):
+            detail = err.decode("utf-8", "replace")[:500]
+            raise RuntimeError(f"list failed (exit={code}): {detail}")
+        results: list[dict] = []
+        for line in out.decode("utf-8", "replace").splitlines():
+            if not line.strip():
+                continue
+            parts = line.split("\t")
+            if len(parts) < 3:
+                continue
+            name, size_s, mtime_s = parts[0], parts[1], parts[2]
+            try:
+                size = int(size_s)
+                mtime = float(mtime_s)
+            except ValueError:
+                continue
+            rel_path = f"{rel}/{name}".replace("//", "/") if name else rel
+            results.append({"path": rel_path, "size": size, "mtime": mtime})
+        results.sort(key=lambda x: x["path"])
+        return results
+
+    def download_file_from_pod(self, sandbox_id: str, rel_path: str) -> tuple[str, bytes]:
+        """Download one file from /workspace. Returns (basename, content)."""
+        import io
+        import tarfile
+
+        from src.pathutil import validate_download_path
+
+        rel = validate_download_path(rel_path)
+        # tar path must be relative to /workspace
+        command = ["tar", "-C", "/workspace", "-cf", "-", rel]
+        code, out, err = self.exec_in_pod(sandbox_id, command)
+        if code not in (0, None) or not out:
+            detail = err.decode("utf-8", "replace")[:500]
+            raise FileNotFoundError(f"download failed for {rel}: {detail or 'empty'}")
+        with tarfile.open(fileobj=io.BytesIO(out), mode="r:") as tar:
+            members = [m for m in tar.getmembers() if m.isfile()]
+            if not members:
+                raise FileNotFoundError(f"No file in archive for {rel}")
+            member = members[0]
+            extracted = tar.extractfile(member)
+            if extracted is None:
+                raise FileNotFoundError(f"Cannot extract {rel}")
+            data = extracted.read()
+            name = os.path.basename(member.name) or os.path.basename(rel)
+            return name, data
 
     # ------------------------------------------------------------------
     # Event watch (for streaming)

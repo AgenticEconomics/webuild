@@ -20,8 +20,20 @@ echo "[sandbox-init] Starting initialization (agent=${SANDBOX_AGENT})..."
 mkdir -p "$WORKSPACE" "$HOME/.webuild"
 cd "$WORKSPACE"
 
-# Clone repository if specified and workspace is empty
-if [ -n "$REPO_URL" ] && [ -z "$(ls -A "$WORKSPACE" 2>/dev/null || true)" ]; then
+# Phase VII — canonical workspace layout for uploads, memory, audits, outputs
+for d in inbox sources work context memory ground-truth audits skills outputs .webuild; do
+    mkdir -p "$WORKSPACE/$d"
+done
+if [ -f /opt/sandbox/WORKSPACE.md ] && [ ! -f "$WORKSPACE/WORKSPACE.md" ]; then
+    cp /opt/sandbox/WORKSPACE.md "$WORKSPACE/WORKSPACE.md"
+fi
+
+# Clone repository if specified and workspace has no project files (ignore layout dirs)
+_ws_project_files="$(find "$WORKSPACE" -mindepth 1 -maxdepth 1 \
+    ! -name inbox ! -name sources ! -name work ! -name context \
+    ! -name memory ! -name ground-truth ! -name audits ! -name skills \
+    ! -name outputs ! -name .webuild ! -name WORKSPACE.md 2>/dev/null | head -1 || true)"
+if [ -n "$REPO_URL" ] && [ -z "$_ws_project_files" ]; then
     echo "[sandbox-init] Cloning $REPO_URL (branch: $REPO_BRANCH)..."
     git clone --depth 1 --branch "$REPO_BRANCH" "$REPO_URL" "$WORKSPACE" 2>/dev/null || \
         git clone --depth 1 "$REPO_URL" "$WORKSPACE"
