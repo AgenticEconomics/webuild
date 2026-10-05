@@ -12,6 +12,7 @@ services/**/*.egg-info/
 deploy/secrets/
 deploy/certbot/
 deploy/.env
+deploy/.env.k3s
 *.pyc
 .env
 .env.local

@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from webuild_shared.models import Sandbox
 
-from src.k8s_client import K8sClient
+from src.k8s_client import K8sClient, SANDBOX_NAMESPACE
 from src.models import (
     CreateSandboxRequest,
     ResourceProfile,
@@ -38,6 +38,23 @@ _LEGACY_PYTHON_IMAGE = os.environ.get(
     "SANDBOX_LEGACY_IMAGE",
     "registry.cn-hangzhou.aliyuncs.com/alinux/python:3.11-slim",
 )
+
+def effective_resources(profile: ResourceProfile) -> dict:
+    """Apply optional SANDBOX_* resource overrides (local k3s nodes are smaller)."""
+    data = profile.model_dump()
+    mapping = {
+        "cpu_request": "SANDBOX_CPU_REQUEST",
+        "memory_request": "SANDBOX_MEMORY_REQUEST",
+        "cpu_limit": "SANDBOX_CPU_LIMIT",
+        "memory_limit": "SANDBOX_MEMORY_LIMIT",
+        "ephemeral_storage": "SANDBOX_EPHEMERAL_STORAGE",
+    }
+    for field, env_name in mapping.items():
+        value = os.environ.get(env_name, "").strip()
+        if value:
+            data[field] = value
+    return data
+
 
 ENVIRONMENT_TEMPLATES: dict[str, SandboxEnvironment] = {
     "default": SandboxEnvironment(
@@ -115,7 +132,7 @@ class SandboxManager:
                         environment_id=request.environment_id,
                         status=SandboxStatus.creating.value,
                         pod_name=None,
-                        namespace="webuild-sandbox",
+                        namespace=SANDBOX_NAMESPACE,
                         created_at=now,
                         expires_at=expires_at,
                         terminated_at=None,
@@ -128,7 +145,7 @@ class SandboxManager:
                     user_id=uuid.UUID(user_id),
                     environment_id=request.environment_id,
                     status=SandboxStatus.creating.value,
-                    namespace="webuild-sandbox",
+                    namespace=SANDBOX_NAMESPACE,
                     created_at=now,
                     expires_at=expires_at,
                 )
@@ -150,7 +167,7 @@ class SandboxManager:
                     "WEBUILD_USER_ID": user_id,
                     "DASHSCOPE_API_KEY": os.environ.get("DASHSCOPE_API_KEY", ""),
                     "MODEL": os.environ.get("MODEL", "qwen-max"),
-                    # Prefer public WSS (NetworkPolicy allows TCP/443 only).
+                    # ACS: wss://…:443. Local k3s: ws://<node-ip>/ws/relay (HTTP edge).
                     "RELAY_URL": os.environ.get(
                         "RELAY_URL", "wss://webuild.datoms.cn/ws/relay"
                     ),
@@ -174,7 +191,7 @@ class SandboxManager:
                     "RUST_LOG": os.environ.get("SANDBOX_RUST_LOG", "info,xai_webuild_shell=debug"),
                     "WEBUILD_LOG": "1",
                 },
-                resources=env.resource_profile.model_dump(),
+                resources=effective_resources(env.resource_profile),
                 ttl_seconds=env.max_ttl_seconds,
                 agent_mode=(
                     "python"
@@ -197,7 +214,7 @@ class SandboxManager:
                 environment_id=request.environment_id,
                 status=SandboxStatus.running,
                 pod_name=pod_name,
-                namespace="webuild-sandbox",
+                namespace=SANDBOX_NAMESPACE,
                 created_at=now,
                 expires_at=expires_at,
             )

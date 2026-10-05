@@ -13,7 +13,6 @@ from src.k8s_client import K8sClient
 
 logger = structlog.get_logger()
 
-SANDBOX_NAMESPACE = "webuild-sandbox"
 ACP_PORT = 8080
 ACP_WS_PATH = "/ws"
 

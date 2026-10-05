@@ -13,8 +13,25 @@ from kubernetes.client.exceptions import ApiException
 
 logger = structlog.get_logger()
 
-SANDBOX_NAMESPACE = "webuild-sandbox"
+SANDBOX_NAMESPACE = os.environ.get("SANDBOX_NAMESPACE", "webuild-sandbox").strip() or "webuild-sandbox"
 SANDBOX_LABEL_PREFIX = "webuild.io/sandbox"
+# Empty / none / off skips imagePullSecrets (local k3s images already in containerd).
+# Unset keeps the ACS private-registry secret.
+_PULL_SECRET_DISABLED = {"", "none", "off", "-"}
+
+
+def image_pull_secret_name() -> str | None:
+    """Secret name for private registries, or None when the image is local."""
+    raw = os.environ.get("SANDBOX_IMAGE_PULL_SECRET", "acr-webuild").strip()
+    if raw.lower() in _PULL_SECRET_DISABLED:
+        return None
+    return raw
+
+
+def image_pull_policy() -> str | None:
+    """Explicit pull policy, or None to let Kubernetes apply its default."""
+    raw = os.environ.get("SANDBOX_IMAGE_PULL_POLICY", "").strip()
+    return raw or None
 
 
 class K8sClient:
@@ -153,15 +170,15 @@ class K8sClient:
         # else: rely on image ENTRYPOINT (/opt/sandbox/sandbox-init.sh → webuild)
 
         # Container
-        container = client.V1Container(
-            name="sandbox",
-            image=image,
-            env=env_list or None,
-            ports=[client.V1ContainerPort(container_port=8080, protocol="TCP")],
-            command=command,
-            args=args,
-            volume_mounts=volume_mounts,
-            resources=client.V1ResourceRequirements(
+        container_kwargs: dict = {
+            "name": "sandbox",
+            "image": image,
+            "env": env_list or None,
+            "ports": [client.V1ContainerPort(container_port=8080, protocol="TCP")],
+            "command": command,
+            "args": args,
+            "volume_mounts": volume_mounts,
+            "resources": client.V1ResourceRequirements(
                 requests={
                     "cpu": cpu_request,
                     "memory": memory_request,
@@ -173,11 +190,15 @@ class K8sClient:
                     "ephemeral-storage": ephemeral_storage,
                 },
             ),
-            security_context=client.V1SecurityContext(
+            "security_context": client.V1SecurityContext(
                 run_as_user=run_as_user,
                 capabilities=client.V1Capabilities(drop=["ALL"]),
             ),
-        )
+        }
+        pull_policy = image_pull_policy()
+        if pull_policy:
+            container_kwargs["image_pull_policy"] = pull_policy
+        container = client.V1Container(**container_kwargs)
 
         labels = {
             "app": "webuild-sandbox",
@@ -187,22 +208,26 @@ class K8sClient:
             "webuild.io/agent-mode": "python" if use_legacy_python else "webuild",
         }
 
+        pod_spec_kwargs: dict = {
+            "containers": [container],
+            "volumes": volumes,
+            "restart_policy": "Never",
+            "termination_grace_period_seconds": 30,
+        }
+        pull_secret = image_pull_secret_name()
+        if pull_secret:
+            # Private registry (ACS ACR secret acr-webuild, or a local override).
+            pod_spec_kwargs["image_pull_secrets"] = [
+                client.V1LocalObjectReference(name=pull_secret),
+            ]
+
         pod_spec = client.V1Pod(
             metadata=client.V1ObjectMeta(
                 name=pod_name,
                 namespace=SANDBOX_NAMESPACE,
                 labels=labels,
             ),
-            spec=client.V1PodSpec(
-                containers=[container],
-                volumes=volumes,
-                restart_policy="Never",
-                termination_grace_period_seconds=30,
-                # Private ACR (xingu-aliyun-acr-registry…) — created in deploy step
-                image_pull_secrets=[
-                    client.V1LocalObjectReference(name="acr-webuild"),
-                ],
-            ),
+            spec=client.V1PodSpec(**pod_spec_kwargs),
         )
 
         self.core_v1.create_namespaced_pod(namespace=SANDBOX_NAMESPACE, body=pod_spec)

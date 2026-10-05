@@ -66,13 +66,16 @@ def sandbox_manager(mock_k8s, mock_db_session):
 
 
 class TestK8sClient:
-    def test_create_sandbox_pod_builds_correct_spec(self):
+    def test_create_sandbox_pod_builds_correct_spec(self, monkeypatch):
         from src.k8s_client import K8sClient
 
         k8s = K8sClient()
         mock_api = MagicMock()
         k8s._core_v1 = mock_api
         k8s._loaded = True
+
+        monkeypatch.delenv("SANDBOX_IMAGE_PULL_SECRET", raising=False)
+        monkeypatch.delenv("SANDBOX_IMAGE_PULL_POLICY", raising=False)
 
         pod_name, svc_name = k8s.create_sandbox_pod(
             sandbox_id="test123",
@@ -101,10 +104,29 @@ class TestK8sClient:
         assert container.resources.limits["memory"] == "8Gi"
         assert container.security_context.run_as_user == 1000
         assert container.security_context.capabilities.drop == ["ALL"]
+        assert pod_body.spec.image_pull_secrets[0].name == "acr-webuild"
+        assert container.image_pull_policy is None
 
         # Verify service was created
         svc_call = mock_api.create_namespaced_service.call_args
         assert svc_call.kwargs["namespace"] == "webuild-sandbox"
+
+    def test_local_k3s_skips_pull_secret_and_pins_pull_policy(self, monkeypatch):
+        from src.k8s_client import K8sClient
+
+        monkeypatch.setenv("SANDBOX_IMAGE_PULL_SECRET", "none")
+        monkeypatch.setenv("SANDBOX_IMAGE_PULL_POLICY", "IfNotPresent")
+
+        k8s = K8sClient()
+        mock_api = MagicMock()
+        k8s._core_v1 = mock_api
+        k8s._loaded = True
+
+        k8s.create_sandbox_pod(sandbox_id="local1", image="docker.io/library/webuild-sandbox:local")
+
+        pod_body = mock_api.create_namespaced_pod.call_args.kwargs["body"]
+        assert pod_body.spec.image_pull_secrets is None
+        assert pod_body.spec.containers[0].image_pull_policy == "IfNotPresent"
 
     def test_delete_sandbox_pod_handles_404(self):
         from kubernetes.client.exceptions import ApiException
@@ -218,6 +240,19 @@ class TestModels:
         assert env.max_ttl_seconds == 3600
         assert env.resource_profile.cpu_request == "1"
         assert env.resource_profile.memory_limit == "8Gi"
+
+    def test_effective_resources_env_override(self, monkeypatch):
+        from src.models import ResourceProfile
+        from src.sandbox_manager import effective_resources
+
+        monkeypatch.setenv("SANDBOX_CPU_REQUEST", "500m")
+        monkeypatch.setenv("SANDBOX_MEMORY_LIMIT", "4Gi")
+        monkeypatch.setenv("SANDBOX_EPHEMERAL_STORAGE", "8Gi")
+        data = effective_resources(ResourceProfile())
+        assert data["cpu_request"] == "500m"
+        assert data["memory_request"] == "2Gi"
+        assert data["memory_limit"] == "4Gi"
+        assert data["ephemeral_storage"] == "8Gi"
 
     def test_sandbox_response_serialization(self):
         from src.models import SandboxResponse, SandboxStatus

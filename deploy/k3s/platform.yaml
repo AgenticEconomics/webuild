@@ -1,0 +1,501 @@
+# WeBuild platform in namespace vitacardia.
+# Edge is NodePort 30080 because host 80/443 belong to the VitaCardia site.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: vitacardia
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: vitacardia
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: webuild-postgres
+  template:
+    metadata:
+      labels:
+        app: webuild-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: docker.io/library/postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: webuild
+            - name: POSTGRES_DB
+              value: webuild
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: webuild-env
+                  key: DB_PASSWORD
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "webuild"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: vitacardia
+spec:
+  selector:
+    app: webuild-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth
+  namespace: vitacardia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webuild-auth
+  template:
+    metadata:
+      labels:
+        app: webuild-auth
+    spec:
+      initContainers:
+        - name: wait-postgres
+          image: docker.io/library/postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until pg_isready -h postgres -U webuild; do sleep 1; done"]
+      containers:
+        - name: auth
+          image: docker.io/library/webuild-auth:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8001
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: webuild-env
+                  key: DATABASE_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: webuild-env
+                  key: JWT_SECRET
+            - name: JWT_ALGORITHM
+              value: HS256
+            - name: INVITE_EMAIL
+              value: vitacardia@localhost
+            - name: INVITE_WHITELIST_PATH
+              value: /run/secrets/invite_whitelist
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          volumeMounts:
+            - name: invite
+              mountPath: /run/secrets/invite_whitelist
+              subPath: invite_whitelist.json
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: invite
+          secret:
+            secretName: invite-whitelist
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: vitacardia
+spec:
+  selector:
+    app: webuild-auth
+  ports:
+    - port: 8001
+      targetPort: 8001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: relay
+  namespace: vitacardia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webuild-relay
+  template:
+    metadata:
+      labels:
+        app: webuild-relay
+    spec:
+      initContainers:
+        - name: wait-postgres
+          image: docker.io/library/postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until pg_isready -h postgres -U webuild; do sleep 1; done"]
+      containers:
+        - name: relay
+          image: docker.io/library/webuild-relay:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8002
+          env:
+            - name: AUTH_SERVICE_URL
+              value: http://auth-service:8001
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: webuild-env
+                  key: DATABASE_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: webuild-env
+                  key: JWT_SECRET
+            - name: RELAY_INTERNAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: webuild-env
+                  key: RELAY_INTERNAL_TOKEN
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: relay-server
+  namespace: vitacardia
+spec:
+  selector:
+    app: webuild-relay
+  ports:
+    - port: 8002
+      targetPort: 8002
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hub
+  namespace: vitacardia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webuild-hub
+  template:
+    metadata:
+      labels:
+        app: webuild-hub
+    spec:
+      containers:
+        - name: hub
+          image: docker.io/library/webuild-hub:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8003
+          env:
+            - name: AUTH_SERVICE_URL
+              value: http://auth-service:8001
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hub-broker
+  namespace: vitacardia
+spec:
+  selector:
+    app: webuild-hub
+  ports:
+    - port: 8003
+      targetPort: 8003
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: vitacardia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webuild-gateway
+  template:
+    metadata:
+      labels:
+        app: webuild-gateway
+    spec:
+      serviceAccountName: gateway-sa
+      initContainers:
+        - name: wait-postgres
+          image: docker.io/library/postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until pg_isready -h postgres -U webuild; do sleep 1; done"]
+      containers:
+        - name: gateway
+          image: docker.io/library/webuild-gateway:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8004
+          env:
+            - name: AUTH_SERVICE_URL
+              value: http://auth-service:8001
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: webuild-env
+                  key: DATABASE_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: webuild-env
+                  key: JWT_SECRET
+            - name: RELAY_INTERNAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: webuild-env
+                  key: RELAY_INTERNAL_TOKEN
+            - name: DASHSCOPE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: webuild-env
+                  key: DASHSCOPE_API_KEY
+            - name: MODEL
+              value: qwen-max
+            - name: SANDBOX_NAMESPACE
+              value: vitacardia
+            - name: SANDBOX_IMAGE
+              value: docker.io/library/webuild-sandbox:local
+            - name: SANDBOX_IMAGE_PULL_SECRET
+              value: none
+            - name: SANDBOX_IMAGE_PULL_POLICY
+              value: IfNotPresent
+            - name: SANDBOX_CPU_REQUEST
+              value: 500m
+            - name: SANDBOX_MEMORY_REQUEST
+              value: 1Gi
+            - name: SANDBOX_CPU_LIMIT
+              value: "2"
+            - name: SANDBOX_MEMORY_LIMIT
+              value: 4Gi
+            - name: SANDBOX_EPHEMERAL_STORAGE
+              value: 8Gi
+            - name: SANDBOX_AGENT
+              value: webuild
+            - name: WEBUILD_YOLO
+              value: "1"
+            - name: RELAY_URL
+              value: ws://relay-server.vitacardia.svc.cluster.local:8002/ws
+            - name: HUB_WS_URL
+              value: ws://hub-broker.vitacardia.svc.cluster.local:8003/ws
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: vitacardia
+spec:
+  selector:
+    app: webuild-gateway
+  ports:
+    - port: 8004
+      targetPort: 8004
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-ide
+  namespace: vitacardia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webuild-web-ide
+  template:
+    metadata:
+      labels:
+        app: webuild-web-ide
+    spec:
+      containers:
+        - name: web-ide
+          image: docker.io/library/webuild-web-ide:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: HOSTNAME
+              value: 0.0.0.0
+            - name: PORT
+              value: "3000"
+            - name: NEXT_PUBLIC_API_BASE_URL
+              value: ""
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-ide
+  namespace: vitacardia
+spec:
+  selector:
+    app: webuild-web-ide
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: vitacardia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webuild-nginx
+  template:
+    metadata:
+      labels:
+        app: webuild-nginx
+    spec:
+      containers:
+        - name: nginx
+          image: docker.io/library/nginx:alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            failureThreshold: 12
+          volumeMounts:
+            - name: nginx-main
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: nginx-confd
+              mountPath: /etc/nginx/conf.d
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+      volumes:
+        - name: nginx-main
+          configMap:
+            name: webuild-nginx
+            items:
+              - key: nginx.conf
+                path: nginx.conf
+        - name: nginx-confd
+          configMap:
+            name: webuild-nginx
+            items:
+              - key: webuild.conf
+                path: webuild.conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: vitacardia
+spec:
+  type: NodePort
+  selector:
+    app: webuild-nginx
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 30080

@@ -1,0 +1,98 @@
+# VitaCardia local k3s. Platform services and sandbox pods share this namespace.
+# NetworkPolicy applies only to sandbox pods (app=webuild-sandbox), so the
+# platform services can still receive traffic.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vitacardia
+  labels:
+    app.kubernetes.io/part-of: webuild
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gateway-sa
+  namespace: vitacardia
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: sandbox-manager
+  namespace: vitacardia
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/status", "pods/log", "pods/exec", "services", "events", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gateway-sandbox-manager
+  namespace: vitacardia
+subjects:
+  - kind: ServiceAccount
+    name: gateway-sa
+    namespace: vitacardia
+roleRef:
+  kind: Role
+  name: sandbox-manager
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sandbox-egress-restrict
+  namespace: vitacardia
+spec:
+  podSelector:
+    matchLabels:
+      app: webuild-sandbox
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: webuild-relay
+      ports:
+        - protocol: TCP
+          port: 8002
+    - to:
+        - podSelector:
+            matchLabels:
+              app: webuild-hub
+      ports:
+        - protocol: TCP
+          port: 8003
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sandbox-deny-ingress
+  namespace: vitacardia
+spec:
+  podSelector:
+    matchLabels:
+      app: webuild-sandbox
+  policyTypes:
+    - Ingress
+  ingress: []

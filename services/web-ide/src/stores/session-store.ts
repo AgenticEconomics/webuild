@@ -96,14 +96,14 @@ function defaultWsUrl(): string {
   if (typeof window === "undefined") return "";
   const stored = localStorage.getItem("webuild_ws_url");
   if (stored) return stored;
-  const host = window.location.hostname;
-  const port = window.location.port;
   const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  // Local docker-compose exposes relay on :8002 (nginx profile is off)
-  if (port === "3000" || port === "3001") {
-    return `${wsProtocol}//${host}:8002/ws`;
+  // Next dev server has no edge proxy; relay listens on :8002.
+  if (window.location.port === "3000" || window.location.port === "3001") {
+    return `${wsProtocol}//${window.location.hostname}:8002/ws`;
   }
-  return `${wsProtocol}//${host}/ws/relay`;
+  // location.host keeps a non-default port such as NodePort 30080.
+  // hostname alone drops it, so the socket hits :80 and never reaches relay.
+  return `${wsProtocol}//${window.location.host}/ws/relay`;
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({

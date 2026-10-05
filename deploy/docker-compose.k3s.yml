@@ -1,0 +1,59 @@
+# Local k3s overlay. Do not rely on docker-compose.override.yml.
+#
+#   deploy/scripts/k3s-up.sh
+#
+# Requires Docker Compose v2.24+ (!override / !reset).
+# Platform services stay here. Sandbox pods are created on the host k3s cluster.
+
+services:
+  nginx:
+    ports: !override
+      - "80:80"
+    volumes: !override
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./k3s/webuild.http.conf:/etc/nginx/conf.d/webuild.conf:ro
+
+  certbot:
+    profiles: ["production"]
+
+  # Phase V: the ACS/k3s sandbox owns the agent seat.
+  agent:
+    profiles: ["lightweight-agent"]
+
+  auth-service:
+    environment:
+      INVITE_EMAIL: ${INVITE_EMAIL:-vitacardia@localhost}
+
+  gateway:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8004:8004"
+    environment:
+      KUBECONFIG: /run/secrets/sandbox-kubeconfig
+      SANDBOX_CLUSTER_API: https://host.docker.internal:6443
+      SANDBOX_NAMESPACE: ${SANDBOX_NAMESPACE:-vitacardia}
+      SANDBOX_IMAGE: ${SANDBOX_IMAGE:-docker.io/library/webuild-sandbox:local}
+      SANDBOX_IMAGE_PULL_SECRET: ${SANDBOX_IMAGE_PULL_SECRET:-none}
+      SANDBOX_IMAGE_PULL_POLICY: ${SANDBOX_IMAGE_PULL_POLICY:-IfNotPresent}
+      SANDBOX_CPU_REQUEST: ${SANDBOX_CPU_REQUEST:-500m}
+      SANDBOX_MEMORY_REQUEST: ${SANDBOX_MEMORY_REQUEST:-1Gi}
+      SANDBOX_CPU_LIMIT: ${SANDBOX_CPU_LIMIT:-2}
+      SANDBOX_MEMORY_LIMIT: ${SANDBOX_MEMORY_LIMIT:-4Gi}
+      SANDBOX_EPHEMERAL_STORAGE: ${SANDBOX_EPHEMERAL_STORAGE:-8Gi}
+      RELAY_URL: ${RELAY_URL:?set K3S_NODE_IP via deploy/scripts/k3s-prepare.sh}
+      HUB_WS_URL: ${HUB_WS_URL:?set K3S_NODE_IP via deploy/scripts/k3s-prepare.sh}
+      RELAY_INTERNAL_TOKEN: ${RELAY_INTERNAL_TOKEN:-webuild-internal-agent-token-2026}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      MODEL: ${MODEL:-qwen-max}
+      SANDBOX_AGENT: ${SANDBOX_AGENT:-webuild}
+      WEBUILD_YOLO: ${WEBUILD_YOLO:-1}
+
+secrets:
+  sandbox-kubeconfig:
+    file: ./secrets/k3s-kubeconfig.yaml
+
+volumes:
+  pgdata:
+    driver: local
+    driver_opts: !reset null

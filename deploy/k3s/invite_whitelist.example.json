@@ -1,0 +1,11 @@
+{
+  "invite_email": "vitacardia@localhost",
+  "users": [
+    {
+      "username": "vitacardia",
+      "email": "vitacardia@localhost",
+      "password": "vitacardia",
+      "role": "admin"
+    }
+  ]
+}

@@ -1,4 +1,8 @@
-"""WeBuild Gateway — FastAPI application managing sandbox lifecycle on ACS Serverless."""
+"""WeBuild Gateway — FastAPI application managing sandbox lifecycle on Kubernetes.
+
+Production uses ACS. The vitacardia local path points KUBECONFIG at a k3s
+cluster on the same machine (see deploy/k3s/README.md).
+"""
 
 from __future__ import annotations
 
