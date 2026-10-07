@@ -24,7 +24,11 @@ need_image() {
   local ref="$1"
   if ! as_root k3s ctr images ls | awk '{print $1}' | grep -qx "$ref"; then
     echo "missing k3s image: $ref" >&2
-    echo "build and import with: deploy/scripts/k3s-build-images.sh" >&2
+    if [[ "$ref" == *"sandbox"* ]]; then
+      echo "build and import with: deploy/scripts/k3s-import-sandbox.sh --build" >&2
+    else
+      echo "build and import with: deploy/scripts/k3s-build-images.sh" >&2
+    fi
     exit 1
   fi
 }
@@ -34,6 +38,7 @@ need_image "docker.io/library/webuild-relay:local"
 need_image "docker.io/library/webuild-hub:local"
 need_image "docker.io/library/webuild-gateway:local"
 need_image "docker.io/library/webuild-web-ide:local"
+need_image "docker.io/library/webuild-sandbox:local"
 need_image "docker.io/library/postgres:16-alpine"
 need_image "docker.io/library/nginx:alpine"
 

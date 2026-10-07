@@ -21,4 +21,4 @@ docker compose \
 
 node_ip="$(python3 -c 'import pathlib,re; t=pathlib.Path("'"$DEPLOY"'/.env.k3s").read_text(); print(re.search(r"^K3S_NODE_IP=(.*)$", t, re.M).group(1).strip())')"
 echo "Web IDE: http://${node_ip}/"
-echo "Sandbox image: deploy/scripts/k3s-import-sandbox.sh --build"
+"$ROOT/deploy/scripts/k3s-import-sandbox.sh" --build
