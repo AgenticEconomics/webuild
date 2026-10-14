@@ -71,6 +71,9 @@ as_root "${KUBECTL[@]}" -n "$NS" create configmap webuild-nginx \
 
 as_root "${KUBECTL[@]}" apply -f "$ROOT/deploy/k3s/platform.yaml"
 
+# Restart all deployments so they pick up any updated secret values
+as_root "${KUBECTL[@]}" -n "$NS" rollout restart deploy/auth deploy/relay deploy/hub deploy/gateway deploy/web-ide deploy/nginx
+
 for dep in postgres auth relay hub gateway web-ide nginx; do
   as_root "${KUBECTL[@]}" -n "$NS" rollout status "deploy/${dep}" --timeout=180s
 done
