@@ -170,7 +170,7 @@ class SandboxManager:
                         "DASHSCOPE_BASE_URL",
                         "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
                     ),
-                    "MODEL": os.environ.get("MODEL", "qwen-max"),
+                    "MODEL": os.environ.get("MODEL", "qwen3.7-max"),
                     # ACS: wss://…:443. Local k3s: ws://<node-ip>/ws/relay (HTTP edge).
                     "RELAY_URL": os.environ.get(
                         "RELAY_URL", "wss://webuild.datoms.cn/ws/relay"

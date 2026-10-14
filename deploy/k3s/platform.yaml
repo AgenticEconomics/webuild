@@ -329,7 +329,7 @@ spec:
                   name: webuild-env
                   key: DASHSCOPE_BASE_URL
             - name: MODEL
-              value: qwen-max
+              value: qwen3.7-max
             - name: SANDBOX_NAMESPACE
               value: vitacardia
             - name: SANDBOX_IMAGE
