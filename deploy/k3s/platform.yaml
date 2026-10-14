@@ -323,6 +323,11 @@ spec:
                 secretKeyRef:
                   name: webuild-env
                   key: DASHSCOPE_API_KEY
+            - name: DASHSCOPE_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: webuild-env
+                  key: DASHSCOPE_BASE_URL
             - name: MODEL
               value: qwen-max
             - name: SANDBOX_NAMESPACE

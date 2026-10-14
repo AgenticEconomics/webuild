@@ -49,12 +49,14 @@ if ! as_root "${KUBECTL[@]}" -n "$NS" get secret webuild-env >/dev/null 2>&1; th
   jwt="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
   token="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
   dash="${DASHSCOPE_API_KEY:-}"
+  dash_url="${DASHSCOPE_BASE_URL:-https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1}"
   as_root "${KUBECTL[@]}" -n "$NS" create secret generic webuild-env \
     --from-literal=DB_PASSWORD="$db" \
     --from-literal=DATABASE_URL="postgresql://webuild:${db}@postgres:5432/webuild" \
     --from-literal=JWT_SECRET="$jwt" \
     --from-literal=RELAY_INTERNAL_TOKEN="$token" \
-    --from-literal=DASHSCOPE_API_KEY="$dash"
+    --from-literal=DASHSCOPE_API_KEY="$dash" \
+    --from-literal=DASHSCOPE_BASE_URL="$dash_url"
   echo "created secret webuild-env"
 fi
 

@@ -42,6 +42,7 @@ services:
       - RELAY_URL=ws://relay-server:8002/ws
       - RELAY_INTERNAL_TOKEN=webuild-internal-agent-token-2026
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - DASHSCOPE_BASE_URL=${DASHSCOPE_BASE_URL:-https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1}
       - MODEL=${MODEL:-qwen-max}
     # Phase V: off by default — ACS sandbox owns the agent seat.
     # Start explicitly with: docker compose --profile lightweight-agent up -d agent
@@ -55,6 +56,7 @@ services:
       - DATABASE_URL=postgresql://webuild:devpass@postgres:5432/webuild
       - JWT_SECRET=dev-secret-key-not-for-production
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - DASHSCOPE_BASE_URL=${DASHSCOPE_BASE_URL:-https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1}
       - MODEL=${MODEL:-qwen-max}
       # Public WSS — ACS NetworkPolicy only allows TCP/443 egress
       - RELAY_URL=wss://webuild.datoms.cn/ws/relay

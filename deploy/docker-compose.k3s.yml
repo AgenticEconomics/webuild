@@ -45,6 +45,7 @@ services:
       HUB_WS_URL: ${HUB_WS_URL:?set K3S_NODE_IP via deploy/scripts/k3s-prepare.sh}
       RELAY_INTERNAL_TOKEN: ${RELAY_INTERNAL_TOKEN:-webuild-internal-agent-token-2026}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      DASHSCOPE_BASE_URL: ${DASHSCOPE_BASE_URL:-https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1}
       MODEL: ${MODEL:-qwen-max}
       SANDBOX_AGENT: ${SANDBOX_AGENT:-webuild}
       WEBUILD_YOLO: ${WEBUILD_YOLO:-1}

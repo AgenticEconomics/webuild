@@ -166,6 +166,10 @@ class SandboxManager:
                     "SESSION_ID": sandbox_id,
                     "WEBUILD_USER_ID": user_id,
                     "DASHSCOPE_API_KEY": os.environ.get("DASHSCOPE_API_KEY", ""),
+                    "DASHSCOPE_BASE_URL": os.environ.get(
+                        "DASHSCOPE_BASE_URL",
+                        "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+                    ),
                     "MODEL": os.environ.get("MODEL", "qwen-max"),
                     # ACS: wss://…:443. Local k3s: ws://<node-ip>/ws/relay (HTTP edge).
                     "RELAY_URL": os.environ.get(
